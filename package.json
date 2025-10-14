@@ -1,0 +1,48 @@
+{
+  "name": "circle-mcp-server",
+  "version": "1.0.0",
+  "description": "Production-grade MCP server for Circle community platform",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "circle-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest",
+    "test:ai": "node run-ai-tests.js",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "mcp",
+    "circle",
+    "llm",
+    "ai"
+  ],
+  "author": "Circle MCP Team",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.19.1",
+    "axios": "^1.7.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "google-auth-library": "^10.4.0",
+    "googleapis": "^162.0.0",
+    "open": "^10.2.0",
+    "openai": "^4.67.3",
+    "winston": "^3.14.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/node": "^22.7.9",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.2"
+  }
+}

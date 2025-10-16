@@ -1,0 +1,26 @@
+{
+  "name": "circle-mcp-client",
+  "version": "1.0.0",
+  "description": "Client proxy for connecting to remote Circle MCP server",
+  "main": "index.js",
+  "bin": {
+    "circle-mcp-client": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "mcp",
+    "circle",
+    "client",
+    "proxy"
+  ],
+  "author": "Circle MCP Team",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.19.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

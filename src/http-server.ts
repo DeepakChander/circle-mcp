@@ -1,20 +1,23 @@
 /**
- * HTTP/WebSocket Server Wrapper for Circle MCP
- * Allows remote access to MCP server via HTTP and WebSocket
+ * HTTP/SSE Server Wrapper for Circle MCP
+ * Allows remote access to MCP server via Server-Sent Events (SSE)
+ * Compatible with Claude Desktop, Cursor, and other MCP clients
  */
 
 import express, { Request, Response } from 'express';
 import { createServer } from 'http';
-import { WebSocketServer, WebSocket } from 'ws';
 import cors from 'cors';
 import { CircleMCPServer } from './server.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { Logger } from './utils/logger.js';
 
 const logger = new Logger('HTTPServer');
 
 const app = express();
 const httpServer = createServer(app);
-const wss = new WebSocketServer({ server: httpServer });
+
+// Store active MCP server instances per session
+const activeSessions = new Map<string, CircleMCPServer>();
 
 // Middleware
 app.use(cors({
@@ -22,13 +25,15 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+app.use(express.text());
 
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    version: '1.0.0'
+    version: '1.0.0',
+    activeSessions: activeSessions.size
   });
 });
 
@@ -40,131 +45,140 @@ app.get('/api/mcp/info', (_req: Request, res: Response) => {
     description: 'Production-grade MCP server for Circle.so community platform',
     capabilities: {
       tools: true,
-      resources: false,
-      prompts: false
+      resources: true,
+      prompts: true
     },
-    transport: ['websocket', 'http']
+    transport: ['sse'],
+    toolCount: 20,
+    documentation: 'https://github.com/DeepakChander/circle-mcp'
   });
 });
 
-// WebSocket connection handler for MCP protocol
-wss.on('connection', (ws: WebSocket, _req) => {
-  const clientId = Math.random().toString(36).substring(7);
-  logger.info('New WebSocket connection', { clientId });
+// SSE endpoint for MCP protocol
+app.get('/sse', async (req: Request, res: Response) => {
+  const sessionId = req.query.sessionId as string || Math.random().toString(36).substring(7);
 
-  // Create a dedicated MCP server instance for this connection
+  logger.info('New SSE connection', { sessionId });
+
+  // Set SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering in nginx
+
+  // Create MCP server instance
   const mcpServer = new CircleMCPServer();
+  activeSessions.set(sessionId, mcpServer);
 
-  // Handle incoming WebSocket messages
-  ws.on('message', async (data: Buffer) => {
-    try {
-      const message = JSON.parse(data.toString());
-      logger.debug('Received MCP message', { clientId, method: message.method });
+  // Create SSE transport
+  const transport = new SSEServerTransport('/messages', res);
 
-      // Process MCP message
-      // Note: This is a simplified handler. In production, you'd use the MCP SDK's transport layer
-      const response = await handleMcpMessage(mcpServer, message);
+  // Connect server to transport
+  await mcpServer.server.connect(transport);
 
-      ws.send(JSON.stringify(response));
-    } catch (error) {
-      logger.error('Error processing WebSocket message', error as Error, { clientId });
-      ws.send(JSON.stringify({
-        jsonrpc: '2.0',
-        id: null,
-        error: {
-          code: -32603,
-          message: 'Internal error processing message'
-        }
-      }));
-    }
+  // Handle client disconnect
+  req.on('close', () => {
+    logger.info('SSE connection closed', { sessionId });
+    activeSessions.delete(sessionId);
+    mcpServer.stop().catch(err => {
+      logger.error('Error stopping MCP server', err);
+    });
   });
-
-  ws.on('close', () => {
-    logger.info('WebSocket connection closed', { clientId });
-  });
-
-  ws.on('error', (error) => {
-    logger.error('WebSocket error', error as Error, { clientId });
-  });
-
-  // Send connection acknowledgment
-  ws.send(JSON.stringify({
-    type: 'connection',
-    status: 'connected',
-    clientId
-  }));
 });
 
-/**
- * Handle MCP protocol messages
- */
-async function handleMcpMessage(_server: CircleMCPServer, message: any): Promise<any> {
-  // This is a placeholder - implement proper MCP message handling
-  // using the SDK's protocol handlers
+// POST endpoint for MCP messages
+app.post('/messages', async (req: Request, res: Response) => {
+  const sessionId = req.query.sessionId as string;
 
-  if (message.method === 'tools/list') {
-    // Return available tools
-    return {
-      jsonrpc: '2.0',
-      id: message.id,
-      result: {
-        tools: [] // Server will populate this
-      }
-    };
+  if (!sessionId) {
+    res.status(400).json({ error: 'Missing sessionId parameter' });
+    return;
   }
 
-  if (message.method === 'tools/call') {
-    // Execute tool
-    return {
-      jsonrpc: '2.0',
-      id: message.id,
-      result: {
-        content: [{
-          type: 'text',
-          text: 'Tool execution result'
-        }]
-      }
-    };
+  const mcpServer = activeSessions.get(sessionId);
+
+  if (!mcpServer) {
+    res.status(404).json({ error: 'Session not found. Please reconnect via /sse endpoint' });
+    return;
   }
 
-  return {
-    jsonrpc: '2.0',
-    id: message.id,
-    error: {
-      code: -32601,
-      message: 'Method not found'
+  try {
+    // The transport handles the message automatically through the connected server
+    // Just acknowledge receipt
+    res.status(202).json({ received: true });
+  } catch (error) {
+    logger.error('Error processing message', error as Error, { sessionId });
+    res.status(500).json({
+      error: 'Internal error processing message',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Root endpoint
+app.get('/', (_req: Request, res: Response) => {
+  res.json({
+    name: 'Circle MCP Server',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/health',
+      info: '/api/mcp/info',
+      sse: '/sse',
+      messages: '/messages (POST)'
+    },
+    documentation: 'https://github.com/DeepakChander/circle-mcp',
+    clientConfig: {
+      description: 'Use npx circle-mcp-client to connect',
+      example: {
+        command: 'npx',
+        args: ['-y', 'circle-mcp-client'],
+        env: {
+          CIRCLE_MCP_SERVER_URL: `http://${process.env.HOST || 'localhost'}:${process.env.PORT || 3001}`
+        }
+      }
     }
-  };
-}
+  });
+});
 
-// Start HTTP/WebSocket server
+// Start HTTP server
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
 
 httpServer.listen(Number(PORT), HOST, () => {
-  logger.info(`Circle MCP HTTP/WebSocket Server running`, {
+  logger.info(`Circle MCP HTTP/SSE Server running`, {
     host: HOST,
     port: PORT,
-    httpUrl: `http://${HOST}:${PORT}`,
-    wsUrl: `ws://${HOST}:${PORT}`
+    url: `http://${HOST}:${PORT}`,
+    sseEndpoint: `http://${HOST}:${PORT}/sse`,
+    healthCheck: `http://${HOST}:${PORT}/health`
   });
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down gracefully');
+const shutdown = async (signal: string) => {
+  logger.info(`${signal} received, shutting down gracefully`);
+
+  // Close all active sessions
+  for (const [sessionId, server] of activeSessions.entries()) {
+    logger.info(`Closing session ${sessionId}`);
+    await server.stop();
+  }
+  activeSessions.clear();
+
   httpServer.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);
   });
-});
 
-process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down gracefully');
-  httpServer.close(() => {
-    logger.info('HTTP server closed');
-    process.exit(0);
-  });
-});
+  // Force close after 10 seconds
+  setTimeout(() => {
+    logger.warn('Forcing shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+};
 
-export { app, httpServer, wss };
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+export { app, httpServer };

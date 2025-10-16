@@ -10,7 +10,7 @@ import { Logger } from './utils/logger.js';
 const logger = new Logger('CircleMCPServer');
 
 export class CircleMCPServer {
-  private server: McpServer;
+  public server: McpServer; // Made public for HTTP server access
   private authManager: IntegratedAuthManager;
   private apiClient: CircleAPIClient;
 

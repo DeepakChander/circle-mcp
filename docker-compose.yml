@@ -8,10 +8,10 @@ services:
     container_name: circle-mcp-server
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "3000:3000"
     environment:
       - NODE_ENV=production
-      - PORT=3001
+      - PORT=3000
       - HOST=0.0.0.0
       - CIRCLE_HEADLESS_TOKEN=${CIRCLE_HEADLESS_TOKEN}
       - CIRCLE_ADMIN_V2_TOKEN=${CIRCLE_ADMIN_V2_TOKEN}
@@ -31,7 +31,7 @@ services:
     networks:
       - circle-mcp-network
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })"]
       interval: 30s
       timeout: 10s
       retries: 3

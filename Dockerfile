@@ -29,6 +29,9 @@ RUN addgroup -g 1001 -S nodejs && \
 
 WORKDIR /app
 
+# Copy public directory for client.js
+COPY --chown=nodejs:nodejs public ./public
+
 # Copy built files and dependencies from builder
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
@@ -38,11 +41,11 @@ COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 USER nodejs
 
 # Expose ports
-EXPOSE 3001
+EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3001/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })"
+    CMD node -e "require('http').get('http://localhost:3000/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })"
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]

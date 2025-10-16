@@ -1,6 +1,6 @@
-# Circle MCP Server - AWS Deployment Guide
+# Circle MCP Server - Deployment Guide
 
-Complete guide for deploying Circle MCP Server to AWS for public access.
+Complete guide for deploying Circle MCP Server for public WebSocket access.
 
 ---
 
@@ -9,9 +9,11 @@ Complete guide for deploying Circle MCP Server to AWS for public access.
 - [Overview](#overview)
 - [Deployment Options](#deployment-options)
 - [Prerequisites](#prerequisites)
-- [Option 1: AWS EC2 Deployment](#option-1-aws-ec2-deployment)
-- [Option 2: AWS ECS (Fargate) Deployment](#option-2-aws-ecs-fargate-deployment)
-- [Option 3: Docker Compose (Any Server)](#option-3-docker-compose-any-server)
+- [Option 1: PM2 on EC2 (Recommended - Simple & Cost-Effective)](#option-1-pm2-on-ec2-recommended)
+- [Option 2: AWS EC2 with Docker](#option-2-aws-ec2-with-docker)
+- [Option 3: AWS ECS (Fargate) Deployment](#option-3-aws-ecs-fargate-deployment)
+- [Option 4: Docker Compose (Any Server)](#option-4-docker-compose-any-server)
+- [DuckDNS Setup (Free Domain)](#duckdns-setup)
 - [Environment Configuration](#environment-configuration)
 - [Security Best Practices](#security-best-practices)
 - [Monitoring & Logging](#monitoring--logging)
@@ -44,7 +46,8 @@ Docker Container (Circle MCP Server)
 
 | Option | Best For | Complexity | Cost |
 |--------|----------|------------|------|
-| **EC2** | Simple setups, full control | Low | ~$15-30/month |
+| **PM2 on EC2** | ⭐ Simple, fast, cost-effective | Very Low | ~$15/month |
+| **EC2 + Docker** | Containerized apps | Low | ~$15-30/month |
 | **ECS Fargate** | Scalable, managed | Medium | ~$20-40/month |
 | **Docker Compose** | Existing servers | Very Low | Varies |
 
@@ -80,7 +83,216 @@ sudo sh get-docker.sh
 
 ---
 
-## Option 1: AWS EC2 Deployment
+## Option 1: PM2 on EC2 (Recommended)
+
+### ⚡ Quick Start (10 minutes)
+
+This is the **simplest and fastest** way to deploy. Perfect for getting started quickly.
+
+### Step 1: Launch EC2 Instance
+
+1. **Go to EC2 Console**: https://console.aws.amazon.com/ec2/
+2. **Launch Instance**:
+   - **Name**: `circle-mcp-server`
+   - **AMI**: Ubuntu Server 22.04 LTS (Free tier eligible)
+   - **Instance Type**: `t2.micro` (Free tier) or `t3.small` (Better performance)
+   - **Key Pair**: Create new or select existing
+   - **Security Group**: Configure firewall rules:
+     ```
+     Port 22 (SSH)    - Your IP only
+     Port 3000 (HTTP) - 0.0.0.0/0 (All IPs)
+     Port 80 (HTTP)   - 0.0.0.0/0 (Optional, for Nginx)
+     ```
+3. **Launch** and note your **Public IP address**
+
+### Step 2: Connect to EC2
+
+```bash
+# Windows (PowerShell)
+ssh -i "C:\path\to\your-key.pem" ubuntu@YOUR_EC2_IP
+
+# Mac/Linux
+chmod 400 ~/path/to/your-key.pem
+ssh -i ~/path/to/your-key.pem ubuntu@YOUR_EC2_IP
+```
+
+### Step 3: Install Node.js & PM2
+
+```bash
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Node.js 20.x
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Verify installation
+node --version  # Should show v20.x
+npm --version
+
+# Install PM2 globally
+sudo npm install -g pm2
+
+# Verify PM2
+pm2 --version
+```
+
+### Step 4: Deploy Application
+
+```bash
+# Create project directory
+mkdir -p ~/circle-mcp
+cd ~/circle-mcp
+
+# Option A: Clone from GitHub (if you've pushed)
+git clone https://github.com/yourusername/circle-mcp.git .
+
+# Option B: Upload files using WinSCP/SCP
+# From your local machine:
+# scp -i your-key.pem -r C:\Users\admin\Desktop\circle-mcp\* ubuntu@YOUR_EC2_IP:~/circle-mcp/
+
+# Install dependencies
+npm install --production
+
+# Verify files
+ls -la
+# Should see: dist/, ecosystem.config.js, package.json, .env, etc.
+```
+
+### Step 5: Configure Environment
+
+```bash
+# Create .env file
+nano .env
+
+# Copy and paste your configuration:
+# (Use Ctrl+Shift+V to paste in terminal)
+```
+
+Paste this (replace with your actual values):
+```env
+CIRCLE_HEADLESS_TOKEN=your_actual_token
+CIRCLE_ADMIN_V2_TOKEN=your_actual_token
+CIRCLE_COMMUNITY_URL=https://learn.1to10x.ai
+CIRCLE_HEADLESS_BASE_URL=https://app.circle.so
+
+GCP_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GCP_CLIENT_SECRET=GOCSPX-your-secret
+GCP_REDIRECT_URI=http://circle-mcp.duckdns.org:3000/auth/google/callback
+OAUTH_PORT=3000
+
+PORT=3000
+HOST=0.0.0.0
+PUBLIC_DOMAIN=circle-mcp.duckdns.org
+NODE_ENV=production
+LOG_LEVEL=info
+READ_ONLY_MODE=false
+ENABLE_RATE_LIMITING=true
+MAX_REQUESTS_PER_MINUTE=60
+CACHE_TTL_SECONDS=300
+```
+
+Save: `Ctrl+X`, then `Y`, then `Enter`
+
+### Step 6: Create logs directory
+
+```bash
+mkdir -p logs
+```
+
+### Step 7: Start with PM2
+
+```bash
+# Start the server
+pm2 start ecosystem.config.js
+
+# Check status
+pm2 status
+
+# View logs
+pm2 logs circle-mcp-websocket
+
+# If everything looks good:
+pm2 save          # Save PM2 process list
+pm2 startup       # Generate startup script
+# Then run the command it outputs (sudo ...)
+```
+
+### Step 8: Verify Deployment
+
+```bash
+# Test health endpoint
+curl http://localhost:3000/health
+
+# Expected response:
+# {"status":"healthy","timestamp":"...","activeSessions":0}
+
+# Check from your computer (browser):
+# http://YOUR_EC2_IP:3000/health
+# http://YOUR_EC2_IP:3000/
+```
+
+### Step 9: Setup DuckDNS (Free Domain)
+
+See [DuckDNS Setup](#duckdns-setup) section below.
+
+### Step 10: Update Google OAuth Redirect URI
+
+1. Go to: https://console.cloud.google.com/apis/credentials
+2. Edit your OAuth 2.0 Client ID
+3. Add redirect URI: `http://circle-mcp.duckdns.org:3000/auth/google/callback`
+4. Save
+
+### 🎉 Done! Your server is live at:
+- **Health**: `http://circle-mcp.duckdns.org:3000/health`
+- **WebSocket**: `ws://circle-mcp.duckdns.org:3000`
+- **Info**: `http://circle-mcp.duckdns.org:3000/api/mcp/info`
+
+### PM2 Management Commands
+
+```bash
+# View status
+pm2 status
+
+# View logs (live)
+pm2 logs circle-mcp-websocket
+
+# View logs (last 100 lines)
+pm2 logs circle-mcp-websocket --lines 100
+
+# Restart server
+pm2 restart circle-mcp-websocket
+
+# Stop server
+pm2 stop circle-mcp-websocket
+
+# Monitor resources
+pm2 monit
+
+# Clear logs
+pm2 flush
+
+# View detailed info
+pm2 show circle-mcp-websocket
+```
+
+### Updating Your Code
+
+```bash
+# On your local machine, build the project:
+npm run build
+
+# Upload new dist folder via WinSCP or:
+scp -i your-key.pem -r dist/ ubuntu@YOUR_EC2_IP:~/circle-mcp/
+
+# On EC2, restart PM2:
+pm2 restart circle-mcp-websocket
+pm2 logs circle-mcp-websocket
+```
+
+---
+
+## Option 2: AWS EC2 with Docker
 
 ### Step 1: Launch EC2 Instance
 
@@ -298,6 +510,92 @@ docker-compose up -d nginx
 # HTTP: http://your-server.com
 # WebSocket: ws://your-server.com/ws
 ```
+
+---
+
+## DuckDNS Setup
+
+### Free Domain Name for Your Server
+
+Instead of using `YOUR_EC2_IP:3000`, get a free domain like `circle-mcp.duckdns.org`.
+
+### Step 1: Create DuckDNS Account
+
+1. Go to https://www.duckdns.org/
+2. Sign in with Google, GitHub, or other providers
+3. It's completely free!
+
+### Step 2: Create Subdomain
+
+1. In DuckDNS dashboard, enter your desired subdomain:
+   - Example: `circle-mcp`
+   - This creates: `circle-mcp.duckdns.org`
+2. Enter your EC2 public IP address
+3. Click "Add domain"
+4. Click "Update IP"
+
+### Step 3: Verify Domain
+
+```bash
+# Test DNS resolution (from your computer)
+nslookup circle-mcp.duckdns.org
+
+# Or use ping
+ping circle-mcp.duckdns.org
+
+# Should show your EC2 IP address
+```
+
+### Step 4: Auto-Update IP (Optional)
+
+If your EC2 IP changes, auto-update DuckDNS:
+
+```bash
+# On EC2, create update script
+nano ~/update-duckdns.sh
+
+# Paste this (replace YOUR_DUCKDNS_TOKEN):
+#!/bin/bash
+echo url="https://www.duckdns.org/update?domains=circle-mcp&token=YOUR_DUCKDNS_TOKEN&ip=" | curl -k -o ~/duckdns.log -K -
+
+# Make executable
+chmod +x ~/update-duckdns.sh
+
+# Add to cron (runs every 5 minutes)
+crontab -e
+# Add this line:
+*/5 * * * * ~/update-duckdns.sh >/dev/null 2>&1
+```
+
+### Step 5: Update Your Configuration
+
+```bash
+# On EC2
+cd ~/circle-mcp
+nano .env
+
+# Update these lines:
+PUBLIC_DOMAIN=circle-mcp.duckdns.org
+GCP_REDIRECT_URI=http://circle-mcp.duckdns.org:3000/auth/google/callback
+
+# Save and restart
+pm2 restart circle-mcp-websocket
+```
+
+### Step 6: Update Google OAuth
+
+1. Go to https://console.cloud.google.com/apis/credentials
+2. Edit your OAuth 2.0 Client ID
+3. Under "Authorized redirect URIs", add:
+   ```
+   http://circle-mcp.duckdns.org:3000/auth/google/callback
+   ```
+4. Save and wait 5 minutes for changes to propagate
+
+### 🎉 Now access your server at:
+- **Health**: http://circle-mcp.duckdns.org:3000/health
+- **WebSocket**: ws://circle-mcp.duckdns.org:3000
+- **Info**: http://circle-mcp.duckdns.org:3000/api/mcp/info
 
 ---
 

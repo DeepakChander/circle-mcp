@@ -1,7 +1,7 @@
 {
   "name": "circle-mcp-server",
-  "version": "1.0.0",
-  "description": "Production-grade MCP server for Circle community platform",
+  "version": "2.0.0",
+  "description": "Production-grade MCP server for Circle community platform with OAuth 2.1",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -22,7 +22,8 @@
     "mcp",
     "circle",
     "llm",
-    "ai"
+    "ai",
+    "oauth"
   ],
   "author": "Circle MCP Team",
   "license": "MIT",
@@ -35,16 +36,13 @@
     "google-auth-library": "^10.4.0",
     "googleapis": "^162.0.0",
     "open": "^10.2.0",
-    "openai": "^4.67.3",
     "winston": "^3.14.2",
-    "ws": "^8.18.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.0",
     "@types/node": "^22.7.9",
-    "@types/ws": "^8.5.13",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3",
     "vitest": "^2.1.2"

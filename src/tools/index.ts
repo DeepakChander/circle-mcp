@@ -1,15 +1,15 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CircleAPIClient } from '../api/client.js';
 import type { IntegratedAuthManager } from '../auth/integrated-auth-manager.js';
-import { registerProfileTools } from './profile.js';
-import { registerCourseTools } from './courses.js';
-import { registerPostTools } from './posts.js';
-import { registerSpaceTools } from './spaces.js';
-import { registerEventTools } from './events.js';
-import { registerNotificationTools } from './notifications.js';
-import { registerMessageTools } from './messages.js';
-import { registerFeedTools } from './feed.js';
-import { registerCommentTools } from './comments.js';
+import { registerProfileTools, registerProfileToolsForSession } from './profile.js';
+import { registerCourseTools, registerCourseToolsForSession } from './courses.js';
+import { registerPostTools, registerPostToolsForSession } from './posts.js';
+import { registerSpaceTools, registerSpaceToolsForSession } from './spaces.js';
+import { registerEventTools, registerEventToolsForSession } from './events.js';
+import { registerNotificationTools, registerNotificationToolsForSession } from './notifications.js';
+import { registerMessageTools, registerMessageToolsForSession } from './messages.js';
+import { registerFeedTools, registerFeedToolsForSession } from './feed.js';
+import { registerCommentTools, registerCommentToolsForSession } from './comments.js';
 import { Logger } from '../utils/logger.js';
 
 const logger = new Logger('ToolRegistry');
@@ -33,4 +33,25 @@ export function registerAllTools(
   registerCommentTools(server, apiClient, authManager, readOnlyMode);
 
   logger.info('All tools registered successfully');
+}
+
+export function registerAllToolsForSession(
+  server: McpServer,
+  apiClient: CircleAPIClient,
+  email: string,
+  readOnlyMode: boolean
+): void {
+  logger.info('Registering all tools for session', { email, readOnlyMode });
+
+  registerProfileToolsForSession(server, apiClient, email);
+  registerCourseToolsForSession(server, apiClient, email);
+  registerPostToolsForSession(server, apiClient, email, readOnlyMode);
+  registerSpaceToolsForSession(server, apiClient, email);
+  registerEventToolsForSession(server, apiClient, email, readOnlyMode);
+  registerNotificationToolsForSession(server, apiClient, email);
+  registerMessageToolsForSession(server, apiClient, email);
+  registerFeedToolsForSession(server, apiClient, email);
+  registerCommentToolsForSession(server, apiClient, email, readOnlyMode);
+
+  logger.info('All tools registered successfully for session');
 }

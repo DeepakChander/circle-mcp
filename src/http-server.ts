@@ -1,270 +1,296 @@
 /**
- * WebSocket MCP Server - Production Ready
- * Allows remote access via WebSocket for MCP protocol
- * Compatible with @modelcontextprotocol/client-websocket
+ * Streamable HTTP MCP Server with OAuth 2.1 Authentication
+ *
+ * Provides:
+ * - OAuth 2.1 endpoints (RFC 9728, RFC 8414, RFC 7591, PKCE)
+ * - Streamable HTTP transport at /mcp (POST, GET, DELETE)
+ * - Bearer token middleware
+ * - Per-session McpServer instances bound to authenticated users
  *
  * Environment Variables:
  * - PORT: Server port (default: 3000)
  * - HOST: Server host (default: 0.0.0.0)
- * - ALLOWED_ORIGINS: CORS allowed origins (comma-separated, default: *)
- * - PUBLIC_DOMAIN: Public domain for WebSocket URL (default: circle-mcp.duckdns.org)
+ * - SERVER_URL: Public URL (default: http://localhost:3000)
  * - NODE_ENV: Environment (production/development)
  */
 
-import express, { Request, Response } from 'express';
-import { createServer } from 'http';
-import { WebSocketServer, WebSocket } from 'ws';
+import { randomUUID } from 'crypto';
+import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
-import { CircleMCPServer } from './server.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { GCPAuthService } from './auth/gcp-auth.js';
+import { CircleAuth } from './auth/auth.js';
+import { McpOAuthServer } from './auth/mcp-oauth-server.js';
+import { SessionManager } from './auth/session-manager.js';
+import { createMcpServer } from './server.js';
+import { config, validateConfig } from './config/config.js';
 import { Logger } from './utils/logger.js';
 
-const logger = new Logger('WebSocketServer');
+const logger = new Logger('HttpServer');
+
+// Extend Express Request to carry user email
+declare global {
+  namespace Express {
+    interface Request {
+      userEmail?: string;
+    }
+  }
+}
 
 // Configuration
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT || '3000');
 const HOST = process.env.HOST || '0.0.0.0';
-const PUBLIC_DOMAIN = process.env.PUBLIC_DOMAIN || 'circle-mcp.duckdns.org';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
-const app = express();
-const httpServer = createServer(app);
-const wss = new WebSocketServer({
-  server: httpServer,
-  maxPayload: 10 * 1024 * 1024, // 10MB max message size
-  perMessageDeflate: true, // Enable compression
+// Validate config
+validateConfig();
+
+// --- Initialize services ---
+
+const gcpAuth = new GCPAuthService({
+  clientId: config.gcpClientId,
+  clientSecret: config.gcpClientSecret,
+  redirectUri: `${config.serverUrl}/callback`,
+  scopes: ['openid', 'email', 'profile'],
 });
 
-// Store active MCP server instances per WebSocket connection
-const activeSessions = new Map<WebSocket, CircleMCPServer>();
+const circleAuth = new CircleAuth(config.headlessToken, config.communityUrl);
+const oauthServer = new McpOAuthServer(gcpAuth, circleAuth);
+const sessionManager = new SessionManager(oauthServer);
 
-// Middleware
+// Transport map: sessionId → { transport, email }
+const transports = new Map<string, StreamableHTTPServerTransport>();
+
+// --- Express app ---
+
+const app = express();
+
+// CORS
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+  origin: process.env.ALLOWED_ORIGINS === '*' ? '*' : (process.env.ALLOWED_ORIGINS?.split(',') || '*'),
   credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Mcp-Session-Id', 'Mcp-Protocol-Version'],
+  exposedHeaders: ['Mcp-Session-Id'],
 }));
-app.use(express.json({ limit: '10mb' }));
 
-// Request logging middleware
+// Request logging
 app.use((req, _res, next) => {
-  logger.debug('HTTP request', {
-    method: req.method,
-    path: req.path,
-    ip: req.ip
-  });
+  logger.debug('HTTP request', { method: req.method, path: req.path });
   next();
 });
 
-// Health check endpoint
-app.get('/health', (_req: Request, res: Response) => {
+// --- OAuth Endpoints ---
+
+app.get('/.well-known/oauth-protected-resource', (req, res) => {
+  oauthServer.handleProtectedResourceMetadata(req, res);
+});
+
+app.get('/.well-known/oauth-authorization-server', (req, res) => {
+  oauthServer.handleAuthorizationServerMetadata(req, res);
+});
+
+app.post('/register', express.json(), (req, res) => {
+  oauthServer.handleRegister(req, res);
+});
+
+app.get('/authorize', (req, res) => {
+  oauthServer.handleAuthorize(req, res);
+});
+
+app.get('/callback', async (req, res) => {
+  await oauthServer.handleCallback(req, res);
+});
+
+app.post('/token', express.urlencoded({ extended: true }), express.json(), (req, res) => {
+  oauthServer.handleToken(req, res);
+});
+
+// --- Bearer Token Middleware for /mcp ---
+
+function bearerTokenMiddleware(req: Request, res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).set({
+      'WWW-Authenticate': `Bearer resource_metadata="${config.serverUrl}/.well-known/oauth-protected-resource"`,
+    }).json({
+      jsonrpc: '2.0',
+      error: { code: -32001, message: 'Unauthorized: Bearer token required' },
+      id: null,
+    });
+    return;
+  }
+
+  const token = authHeader.slice(7);
+  const email = sessionManager.resolveEmailFromToken(token);
+
+  if (!email) {
+    res.status(401).set({
+      'WWW-Authenticate': `Bearer error="invalid_token", resource_metadata="${config.serverUrl}/.well-known/oauth-protected-resource"`,
+    }).json({
+      jsonrpc: '2.0',
+      error: { code: -32001, message: 'Unauthorized: Invalid or expired token' },
+      id: null,
+    });
+    return;
+  }
+
+  req.userEmail = email;
+  next();
+}
+
+// --- MCP Endpoints ---
+
+// Parse JSON body for POST /mcp (needed so we can inspect if it's an initialize request)
+app.post('/mcp', bearerTokenMiddleware, express.json(), async (req: Request, res: Response) => {
+  const email = req.userEmail!;
+  const sessionId = req.headers['mcp-session-id'] as string | undefined;
+
+  // If there's an existing session, route to it
+  if (sessionId && transports.has(sessionId)) {
+    const transport = transports.get(sessionId)!;
+    await transport.handleRequest(req, res, req.body);
+    return;
+  }
+
+  // If a session ID was provided but doesn't exist, return 404
+  if (sessionId && !transports.has(sessionId)) {
+    res.status(404).json({
+      jsonrpc: '2.0',
+      error: { code: -32000, message: 'Session not found. Please reinitialize.' },
+      id: null,
+    });
+    return;
+  }
+
+  // No session ID — this should be an initialize request. Create a new transport + server.
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: () => randomUUID(),
+    onsessioninitialized: (newSessionId) => {
+      // Store the transport mapped by session ID
+      transports.set(newSessionId, transport);
+      sessionManager.createSession(newSessionId, email);
+      logger.info('New MCP session initialized', { sessionId: newSessionId, email });
+    },
+    onsessionclosed: (closedSessionId) => {
+      transports.delete(closedSessionId);
+      sessionManager.removeSession(closedSessionId);
+      logger.info('MCP session closed', { sessionId: closedSessionId });
+    },
+  });
+
+  // Create a per-session McpServer with email pre-injected
+  const mcpServer = createMcpServer(email, sessionManager);
+  await mcpServer.connect(transport);
+
+  // Handle the initial request
+  await transport.handleRequest(req, res, req.body);
+});
+
+app.get('/mcp', bearerTokenMiddleware, async (req: Request, res: Response) => {
+  const sessionId = req.headers['mcp-session-id'] as string | undefined;
+
+  if (!sessionId || !transports.has(sessionId)) {
+    res.status(400).json({
+      jsonrpc: '2.0',
+      error: { code: -32000, message: 'Invalid or missing session ID' },
+      id: null,
+    });
+    return;
+  }
+
+  const transport = transports.get(sessionId)!;
+  await transport.handleRequest(req, res);
+});
+
+app.delete('/mcp', bearerTokenMiddleware, async (req: Request, res: Response) => {
+  const sessionId = req.headers['mcp-session-id'] as string | undefined;
+
+  if (!sessionId || !transports.has(sessionId)) {
+    res.status(404).json({
+      jsonrpc: '2.0',
+      error: { code: -32000, message: 'Session not found' },
+      id: null,
+    });
+    return;
+  }
+
+  const transport = transports.get(sessionId)!;
+  await transport.handleRequest(req, res);
+});
+
+// --- Utility Endpoints ---
+
+app.get('/health', (_req, res) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
-    activeSessions: activeSessions.size,
-    transport: 'websocket'
+    activeSessions: transports.size,
+    transport: 'streamable-http',
   });
 });
 
-// MCP Server info endpoint
-app.get('/api/mcp/info', (_req: Request, res: Response) => {
-  const wsUrl = Number(PORT) === 80 ? `ws://${PUBLIC_DOMAIN}` : `ws://${PUBLIC_DOMAIN}:${PORT}`;
-  res.json({
-    name: 'Circle MCP Server',
-    version: '1.0.0',
-    description: 'Production-grade MCP server for Circle.so community platform',
-    capabilities: {
-      tools: true,
-      resources: true,
-      prompts: true
-    },
-    transport: 'websocket',
-    websocketUrl: wsUrl,
-    toolCount: 20,
-    features: [
-      'Google OAuth 2.0 Authentication',
-      'Profile Management',
-      'Course Access',
-      'Post Creation & Management',
-      'Event Management',
-      'Notifications',
-      'Direct Messaging',
-      'Space Management',
-      'Comments & Interactions'
-    ],
-    documentation: 'https://github.com/yourusername/circle-mcp'
-  });
-});
-
-// Root endpoint with client configuration
-app.get('/', (_req: Request, res: Response) => {
-  const wsUrl = Number(PORT) === 80 ? `ws://${PUBLIC_DOMAIN}` : `ws://${PUBLIC_DOMAIN}:${PORT}`;
+app.get('/', (_req, res) => {
   res.json({
     name: 'Circle MCP Server',
     version: '1.0.0',
     status: 'running',
     environment: NODE_ENV,
-    transport: 'websocket',
-    websocketUrl: wsUrl,
+    transport: 'streamable-http',
     endpoints: {
-      health: '/health',
-      info: '/api/mcp/info',
-      websocket: wsUrl
+      mcp: `${config.serverUrl}/mcp`,
+      health: `${config.serverUrl}/health`,
+      oauth_metadata: `${config.serverUrl}/.well-known/oauth-authorization-server`,
+      resource_metadata: `${config.serverUrl}/.well-known/oauth-protected-resource`,
     },
-    documentation: 'https://github.com/yourusername/circle-mcp',
-    setup: {
-      description: 'Connect using Claude Desktop or any MCP-compatible client',
-      claudeDesktop: {
-        configFile: {
-          windows: '%APPDATA%\\Claude\\claude_desktop_config.json',
-          mac: '~/Library/Application Support/Claude/claude_desktop_config.json',
-          linux: '~/.config/Claude/claude_desktop_config.json'
-        },
-        config: {
-          mcpServers: {
-            circle: {
-              command: 'npx',
-              args: [
-                '-y',
-                '@modelcontextprotocol/client-websocket',
-                wsUrl
-              ]
-            }
-          }
-        }
-      }
-    }
+    mcpConfig: {
+      cursor: { mcpServers: { circle: { url: `${config.serverUrl}/mcp` } } },
+      claudeDesktop: { mcpServers: { circle: { command: 'npx', args: ['-y', 'mcp-remote', `${config.serverUrl}/mcp`] } } },
+      claudeCode: `claude mcp add circle --transport http ${config.serverUrl}/mcp`,
+      vscode: { 'mcp.servers': { circle: { type: 'http', url: `${config.serverUrl}/mcp` } } },
+    },
   });
 });
 
-// WebSocket MCP server
-wss.on('connection', (ws: WebSocket) => {
-  const clientId = Math.random().toString(36).substring(7);
-  logger.info('New WebSocket connection', { clientId });
+// --- Start server ---
 
-  try {
-    // Create MCP server instance for this connection
-    const mcpServer = new CircleMCPServer();
-    activeSessions.set(ws, mcpServer);
-
-    // Create transport that bridges WebSocket to MCP stdio
-    const transport = {
-      async start() {
-        // MCP Server will send messages via onmessage callback
-        // We relay them to WebSocket
-      },
-      async send(message: any) {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify(message));
-        }
-      },
-      async close() {
-        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-          ws.close();
-        }
-      },
-      onmessage: null as ((message: any) => void) | null,
-      onclose: null as (() => void) | null,
-      onerror: null as ((error: Error) => void) | null
-    };
-
-    // Handle incoming WebSocket messages
-    ws.on('message', async (data: Buffer) => {
-      try {
-        const message = JSON.parse(data.toString());
-        logger.debug('Received message', { clientId, method: message.method });
-
-        // Forward to MCP server transport
-        if (transport.onmessage) {
-          transport.onmessage(message);
-        }
-      } catch (error) {
-        logger.error('Error processing message', error as Error, { clientId });
-        ws.send(JSON.stringify({
-          jsonrpc: '2.0',
-          id: null,
-          error: {
-            code: -32700,
-            message: 'Parse error'
-          }
-        }));
-      }
-    });
-
-    ws.on('close', () => {
-      logger.info('WebSocket connection closed', { clientId });
-      activeSessions.delete(ws);
-      mcpServer.stop().catch(err => {
-        logger.error('Error stopping MCP server', err);
-      });
-      if (transport.onclose) {
-        transport.onclose();
-      }
-    });
-
-    ws.on('error', (error) => {
-      logger.error('WebSocket error', error as Error, { clientId });
-      if (transport.onerror) {
-        transport.onerror(error as Error);
-      }
-    });
-
-    // Connect MCP server to WebSocket transport
-    mcpServer.server.connect(transport as any);
-
-  } catch (error) {
-    logger.error('Error setting up WebSocket connection', error as Error, { clientId });
-    ws.close();
-  }
-});
-
-// Start HTTP/WebSocket server
-httpServer.listen(Number(PORT), HOST, () => {
-  const wsUrl = Number(PORT) === 80 ? `ws://${PUBLIC_DOMAIN}` : `ws://${PUBLIC_DOMAIN}:${PORT}`;
-  logger.info(`Circle MCP WebSocket Server started successfully`, {
+const server = app.listen(PORT, HOST, () => {
+  logger.info('Circle MCP Server started', {
     environment: NODE_ENV,
     host: HOST,
     port: PORT,
-    localUrl: `http://localhost:${PORT}`,
-    publicUrl: wsUrl,
-    activeSessions: activeSessions.size,
-    endpoints: {
-      health: `http://localhost:${PORT}/health`,
-      info: `http://localhost:${PORT}/api/mcp/info`,
-      root: `http://localhost:${PORT}/`
-    }
+    serverUrl: config.serverUrl,
   });
 
-  console.log('\n🚀 Circle MCP Server is running!');
-  console.log(`📡 WebSocket URL: ${wsUrl}`);
-  console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
-  console.log(`📖 Documentation: http://localhost:${PORT}/api/mcp/info\n`);
+  console.log('\nCircle MCP Server is running!');
+  console.log(`URL: ${config.serverUrl}`);
+  console.log(`MCP Endpoint: ${config.serverUrl}/mcp`);
+  console.log(`Health: ${config.serverUrl}/health`);
+  console.log(`OAuth Metadata: ${config.serverUrl}/.well-known/oauth-authorization-server\n`);
 });
 
-// Graceful shutdown
+// --- Graceful shutdown ---
+
 const shutdown = async (signal: string) => {
   logger.info(`${signal} received, shutting down gracefully`);
 
-  // Close all active WebSocket connections
-  for (const [ws, server] of activeSessions.entries()) {
-    logger.info('Closing WebSocket connection');
-    await server.stop();
-    ws.close();
+  // Close all active transports
+  for (const [sessionId, transport] of transports) {
+    logger.info('Closing session', { sessionId });
+    await transport.close().catch(() => {});
   }
-  activeSessions.clear();
+  transports.clear();
 
-  // Close WebSocket server
-  wss.close(() => {
-    logger.info('WebSocket server closed');
-  });
+  // Cleanup OAuth server
+  oauthServer.destroy();
 
-  httpServer.close(() => {
+  server.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);
   });
 
-  // Force close after 10 seconds
   setTimeout(() => {
     logger.warn('Forcing shutdown after timeout');
     process.exit(1);
@@ -274,4 +300,4 @@ const shutdown = async (signal: string) => {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
-export { app, httpServer, wss };
+export { app, server };

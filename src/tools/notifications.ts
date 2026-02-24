@@ -5,9 +5,54 @@ import type { IntegratedAuthManager } from '../auth/integrated-auth-manager.js';
 import { endpoints } from '../api/endpoints.js';
 import { Logger } from '../utils/logger.js';
 import type { CircleNotification, PaginatedResponse } from '../types/index.js';
-import { withAuthentication } from './auth-wrapper.js';
+import { withAuthentication, withSessionAuth } from './auth-wrapper.js';
 
 const logger = new Logger('NotificationTools');
+
+function createGetNotificationsHandler(apiClient: CircleAPIClient) {
+  return async (params: any) => {
+    try {
+      const email = params.authenticatedEmail;
+      const response = await apiClient.get<PaginatedResponse<CircleNotification>>(
+        endpoints.getNotifications(params), email
+      );
+
+      const notifications = response.records.map(notif => ({
+        id: notif.id, type: notif.type, read: notif.read, created: notif.created_at,
+      }));
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            total: response.count, unread: notifications.filter(n => !n.read).length, notifications,
+          }, null, 2),
+        }],
+      };
+    } catch (error) {
+      logger.error('Failed to get notifications', error as Error);
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMsg.includes('404')) {
+        return { content: [{ type: 'text', text: `Notifications feature is not available.\n\nThis endpoint may not be accessible with your current permissions, or notifications may not be enabled for this community.` }] };
+      }
+      return { content: [{ type: 'text', text: `Error: ${errorMsg}` }], isError: true };
+    }
+  };
+}
+
+export function registerNotificationToolsForSession(
+  server: McpServer,
+  apiClient: CircleAPIClient,
+  email: string
+): void {
+  server.registerTool('get_notifications', {
+    title: 'Get Notifications', description: 'List your notifications',
+    inputSchema: {
+      page: z.number().int().positive().default(1),
+      per_page: z.number().int().positive().max(100).default(20),
+    },
+  }, withSessionAuth(email, createGetNotificationsHandler(apiClient)));
+}
 
 export function registerNotificationTools(
   server: McpServer,

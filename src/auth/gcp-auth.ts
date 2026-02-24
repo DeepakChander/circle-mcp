@@ -36,11 +36,12 @@ export class GCPAuthService {
   /**
    * Generate OAuth2 authorization URL
    */
-  generateAuthUrl(): string {
+  generateAuthUrl(state?: string): string {
     const authUrl = this.oauth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: this.config.scopes,
       prompt: 'consent', // Force consent screen to get refresh token
+      ...(state && { state }),
     });
 
     logger.info('Generated OAuth2 authorization URL');

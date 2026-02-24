@@ -16,8 +16,13 @@ export const config: CircleConfig = {
   // GCP OAuth settings
   gcpClientId: process.env.GCP_CLIENT_ID || '',
   gcpClientSecret: process.env.GCP_CLIENT_SECRET || '',
-  gcpRedirectUri: process.env.GCP_REDIRECT_URI || 'http://localhost:3000/auth/google/callback',
+  gcpRedirectUri: process.env.GCP_REDIRECT_URI || 'http://localhost:3000/callback',
   oauthPort: parseInt(process.env.OAUTH_PORT || '3000'),
+  // Server URL for OAuth redirects
+  serverUrl: process.env.SERVER_URL || 'http://localhost:3000',
+  // MCP token expiry settings
+  mcpTokenExpiry: parseInt(process.env.MCP_TOKEN_EXPIRY || '3600'),
+  mcpRefreshTokenExpiry: parseInt(process.env.MCP_REFRESH_TOKEN_EXPIRY || '2592000'),
 };
 
 export function validateConfig(): void {

@@ -30,4 +30,9 @@ export interface CircleConfig {
   gcpClientSecret: string;
   gcpRedirectUri: string;
   oauthPort: number;
+  // Server URL for OAuth redirects
+  serverUrl: string;
+  // MCP token expiry settings
+  mcpTokenExpiry: number;
+  mcpRefreshTokenExpiry: number;
 }

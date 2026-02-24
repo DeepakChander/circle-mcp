@@ -2,924 +2,531 @@
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue.svg)](https://www.typescriptlang.org/)
 [![MCP](https://img.shields.io/badge/MCP-1.19-green.svg)](https://modelcontextprotocol.io/)
+[![OAuth 2.1](https://img.shields.io/badge/OAuth-2.1-orange.svg)](https://oauth.net/2.1/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Production-grade **Model Context Protocol (MCP)** server for the Circle community platform. This server enables AI assistants to interact with Circle.so communities through Google OAuth 2.0 authentication and provides 20+ tools for comprehensive community management.
-
----
-
-## 📋 Table of Contents
-
-- [Features](#-features)
-- [Architecture](#-architecture)
-- [Prerequisites](#-prerequisites)
-- [Installation](#-installation)
-- [Configuration](#-configuration)
-  - [Google Cloud Platform Setup](#1-google-cloud-platform-gcp-setup)
-  - [Environment Variables](#2-environment-variables)
-- [Building & Testing](#-building--testing)
-- [IDE Integration](#-ide-integration)
-  - [Claude Desktop](#1-claude-desktop)
-  - [VS Code with Cline](#2-vs-code-with-cline)
-  - [Other MCP Clients](#3-other-mcp-clients)
-- [Available Tools](#-available-tools)
-- [Usage Examples](#-usage-examples)
-- [Troubleshooting](#-troubleshooting)
-- [Development](#-development)
-- [License](#-license)
-
----
-
-## ✨ Features
-
-### Core Capabilities
-- 🔐 **Google OAuth 2.0 Integration** - Secure authentication via Google accounts
-- 🔗 **Circle API Integration** - Seamless integration with Circle.so communities
-- 🛡️ **JWT Token Management** - Automatic token refresh and secure storage
-- 🚦 **Rate Limiting** - Built-in protection against API rate limits
-- 🔄 **Request Retry Logic** - Exponential backoff for failed requests
-- 📊 **Comprehensive Logging** - Winston-based structured logging
-- 🎯 **20+ Tools** - Complete Circle API coverage
-- 🔧 **Type-Safe** - Full TypeScript implementation with Zod validation
-
-### Security Features
-- ✅ Secure credential storage
-- ✅ Automatic token refresh
-- ✅ OAuth 2.0 authorization code flow
-- ✅ Read-only mode support
-- ✅ Environment-based configuration
-
----
-
-## 🏗️ Architecture
-
-```
-┌─────────────────┐
-│   AI Assistant  │ (Claude Desktop, VS Code, etc.)
-└────────┬────────┘
-         │ MCP Protocol (stdio)
-         ▼
-┌─────────────────────────────────┐
-│    Circle MCP Server            │
-│  ┌──────────────────────────┐  │
-│  │  Integrated Auth Manager │  │
-│  │  ├─ GCP OAuth 2.0        │  │
-│  │  └─ Circle JWT Auth      │  │
-│  └──────────────────────────┘  │
-│  ┌──────────────────────────┐  │
-│  │  Circle API Client       │  │
-│  │  ├─ Rate Limiting        │  │
-│  │  ├─ Retry Logic          │  │
-│  │  └─ Error Handling       │  │
-│  └──────────────────────────┘  │
-│  ┌──────────────────────────┐  │
-│  │  20+ MCP Tools           │  │
-│  └──────────────────────────┘  │
-└─────────────┬───────────────────┘
-              │ HTTPS
-              ▼
-    ┌──────────────────┐
-    │  Circle.so API   │
-    └──────────────────┘
-```
-
-**Authentication Flow:**
-1. User triggers `authenticate_with_google` tool
-2. OAuth server starts on localhost:3000
-3. Browser opens for Google sign-in
-4. User authorizes the application
-5. Server receives OAuth callback with authorization code
-6. Exchanges code for GCP access/refresh tokens
-7. Retrieves user email from Google
-8. Authenticates with Circle API using email
-9. Stores both GCP and Circle tokens securely
-
----
-
-## 📦 Prerequisites
-
-Before you begin, ensure you have:
-
-- **Node.js** v18 or higher ([Download](https://nodejs.org/))
-- **npm** v9 or higher (comes with Node.js)
-- **TypeScript** knowledge (helpful but not required)
-- **Google Cloud Platform account** (free tier works)
-- **Circle.so community** with headless access token
-- **AI Assistant** that supports MCP (Claude Desktop, VS Code with Cline, etc.)
-
----
-
-## 🚀 Installation
-
-### 1. Clone or Download the Project
-
-```bash
-cd /path/to/your/projects
-# If you have this as a git repo:
-git clone <repository-url> circle-mcp
-cd circle-mcp
-
-# Or if you already have the folder:
-cd circle-mcp
-```
-
-### 2. Install Dependencies
-
-```bash
-npm install
-```
-
-This installs all required packages:
-- `@modelcontextprotocol/sdk` - MCP protocol implementation
-- `google-auth-library` - Google OAuth 2.0
-- `googleapis` - Google APIs
-- `express` - OAuth callback server
-- `axios` - HTTP client
-- `winston` - Logging
-- `zod` - Schema validation
-- And more...
-
----
-
-## ⚙️ Configuration
-
-### 1. Google Cloud Platform (GCP) Setup
-
-#### Step 1.1: Create a GCP Project
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Click "Select a project" → "New Project"
-3. Enter project name (e.g., "Circle MCP Auth")
-4. Click "Create"
-
-#### Step 1.2: Enable Google+ API
-
-1. In your project, go to **APIs & Services** → **Library**
-2. Search for "Google+ API"
-3. Click on it and press **Enable**
-
-#### Step 1.3: Configure OAuth Consent Screen
-
-1. Go to **APIs & Services** → **OAuth consent screen**
-2. Choose **External** (unless you have a Google Workspace)
-3. Fill in the required fields:
-   - **App name**: Circle MCP Server
-   - **User support email**: Your email
-   - **Developer contact**: Your email
-4. Click **Save and Continue**
-5. **Scopes**: Skip this step (click Save and Continue)
-6. **Test users**: Add your Google account email
-7. Click **Save and Continue**
-
-#### Step 1.4: Create OAuth 2.0 Credentials
-
-1. Go to **APIs & Services** → **Credentials**
-2. Click **Create Credentials** → **OAuth 2.0 Client ID**
-3. Choose **Web application**
-4. Configure:
-   - **Name**: Circle MCP OAuth Client
-   - **Authorized redirect URIs**: Add `http://localhost:3000/auth/google/callback`
-5. Click **Create**
-6. **Save your credentials**:
-   - Copy the **Client ID** (ends with `.apps.googleusercontent.com`)
-   - Copy the **Client Secret** (starts with `GOCSPX-`)
-
-### 2. Environment Variables
-
-Create a `.env` file in the project root:
-
-```bash
-# Create .env file
-touch .env
-```
-
-Add the following configuration:
-
-```env
-# Circle.so Configuration
-CIRCLE_HEADLESS_TOKEN=your_circle_headless_token
-CIRCLE_COMMUNITY_URL=https://your-community.circle.so
-CIRCLE_HEADLESS_BASE_URL=https://app.circle.so
-
-# Google Cloud Platform OAuth 2.0
-GCP_CLIENT_ID=your-client-id-here.apps.googleusercontent.com
-GCP_CLIENT_SECRET=GOCSPX-your-client-secret-here
-GCP_REDIRECT_URI=http://localhost:3000/auth/google/callback
-OAUTH_PORT=3000
-
-# Server Configuration
-READ_ONLY_MODE=false
-LOG_LEVEL=info
-```
-
-#### How to Get Circle Credentials:
-
-1. **Circle Headless Token**:
-   - Log in to your Circle community admin panel
-   - Go to Settings → API
-   - Generate a headless access token
-   - Copy the token
-
-2. **Circle Community URL**:
-   - Your community's URL (e.g., `https://learn.1to10x.ai`)
-
-#### Configuration Options:
-
-| Variable | Required | Description | Example |
-|----------|----------|-------------|---------|
-| `CIRCLE_HEADLESS_TOKEN` | Yes | Circle API headless token | `abc123...` |
-| `CIRCLE_COMMUNITY_URL` | Yes | Your Circle community URL | `https://community.circle.so` |
-| `GCP_CLIENT_ID` | Yes | Google OAuth Client ID | `123-abc.apps.googleusercontent.com` |
-| `GCP_CLIENT_SECRET` | Yes | Google OAuth Client Secret | `GOCSPX-abcd1234` |
-| `GCP_REDIRECT_URI` | Yes | OAuth callback URL | `http://localhost:3000/auth/google/callback` |
-| `OAUTH_PORT` | No | OAuth server port (default: 3000) | `3000` |
-| `READ_ONLY_MODE` | No | Disable write operations (default: false) | `false` |
-| `LOG_LEVEL` | No | Logging level (default: info) | `info` |
-
----
-
-## 🔨 Building & Testing
-
-### Build the Project
-
-```bash
-npm run build
-```
-
-This compiles TypeScript to JavaScript in the `dist/` folder.
-
-### Verify Setup
-
-```bash
-node verify-setup.js
-```
-
-This checks:
-- ✅ All required files exist
-- ✅ Dependencies are installed
-- ✅ Environment variables are configured
-- ✅ TypeScript compiles without errors
-- ✅ Port 3000 is available
-- ✅ GCP credentials are valid
-
-### Test OAuth Flow
-
-```bash
-# Configuration test
-node test-oauth-flow.js
-
-# Automated server test
-node test-oauth-automated.js
-
-# Interactive OAuth testing
-node test-oauth-interactive.js
-```
-
-### Run the Server
-
-```bash
-npm start
-```
-
----
-
-## 🖥️ IDE Integration
-
-### 1. Claude Desktop
-
-Claude Desktop is Anthropic's official desktop app that supports MCP servers.
-
-#### Step 1.1: Install Claude Desktop
-
-Download from [claude.ai](https://claude.ai/download)
-
-#### Step 1.2: Locate Configuration File
-
-The configuration file location depends on your OS:
-
-**macOS:**
-```bash
-~/Library/Application Support/Claude/claude_desktop_config.json
-```
-
-**Windows:**
-```bash
-%APPDATA%\Claude\claude_desktop_config.json
-```
-
-**Linux:**
-```bash
-~/.config/Claude/claude_desktop_config.json
-```
-
-#### Step 1.3: Edit Configuration
-
-Open `claude_desktop_config.json` and add:
+**Zero-config MCP server for Circle LMS communities.** Paste one URL into any IDE, authenticate via Google, and get 20+ Circle community tools — no API keys, no scripts, no tokens.
 
 ```json
 {
   "mcpServers": {
     "circle": {
-      "command": "node",
-      "args": ["C:\\Users\\admin\\Desktop\\circle-mcp\\dist\\index.js"],
-      "env": {
-        "CIRCLE_HEADLESS_TOKEN": "your_circle_token_here",
-        "CIRCLE_COMMUNITY_URL": "https://your-community.circle.so",
-        "CIRCLE_HEADLESS_BASE_URL": "https://app.circle.so",
-        "GCP_CLIENT_ID": "your-client-id.apps.googleusercontent.com",
-        "GCP_CLIENT_SECRET": "GOCSPX-your-secret",
-        "GCP_REDIRECT_URI": "http://localhost:3000/auth/google/callback",
-        "OAUTH_PORT": "3000",
-        "LOG_LEVEL": "info"
-      }
+      "url": "https://your-domain.com/mcp"
     }
   }
 }
 ```
 
-**Important Notes:**
-- Replace `C:\\Users\\admin\\Desktop\\circle-mcp\\dist\\index.js` with your actual path
-- On Windows, use double backslashes (`\\`) or forward slashes (`/`)
-- On macOS/Linux, use forward slashes (`/`)
-- Replace all credential placeholders with your actual values
+That's it. Auth happens in-browser after first tool use.
 
-#### Step 1.4: Restart Claude Desktop
+---
 
-1. Quit Claude Desktop completely
-2. Relaunch Claude Desktop
-3. The Circle MCP server will start automatically
+## How It Works
 
-#### Step 1.5: Verify Integration
+1. **User pastes MCP URL** into their IDE (Cursor, Claude Code, VS Code, Windsurf, Claude Desktop)
+2. **First tool use** triggers browser-based Google OAuth
+3. **Server checks** if the Google email is a registered member of the Circle community
+4. **If yes** — 20+ tools become available (profile, courses, posts, events, etc.)
+5. **If no** — access denied ("Email not registered in this community")
+6. **Token auto-refreshes** — no re-authentication needed for 30 days
 
-In Claude Desktop, type:
+---
 
-```
-Can you check if the Circle MCP server is connected?
-```
+## Quick Start (For Organization Admins)
 
-If connected, Claude can use tools like:
-```
-Please authenticate with Google so I can access Circle features.
-```
-
-### 2. VS Code with Cline
-
-Cline is a VS Code extension that supports MCP servers.
-
-#### Step 2.1: Install Cline Extension
-
-1. Open VS Code
-2. Go to Extensions (Ctrl+Shift+X / Cmd+Shift+X)
-3. Search for "Cline"
-4. Click Install
-
-#### Step 2.2: Configure Cline
-
-1. Open Command Palette (Ctrl+Shift+P / Cmd+Shift+P)
-2. Type "Cline: Open Settings"
-3. Navigate to MCP Servers section
-4. Click "Edit in settings.json"
-
-Add this configuration:
-
-```json
-{
-  "cline.mcpServers": {
-    "circle": {
-      "command": "node",
-      "args": ["/absolute/path/to/circle-mcp/dist/index.js"],
-      "env": {
-        "CIRCLE_HEADLESS_TOKEN": "your_token",
-        "CIRCLE_COMMUNITY_URL": "https://your-community.circle.so",
-        "GCP_CLIENT_ID": "your-client-id.apps.googleusercontent.com",
-        "GCP_CLIENT_SECRET": "GOCSPX-your-secret",
-        "GCP_REDIRECT_URI": "http://localhost:3000/auth/google/callback"
-      }
-    }
-  }
-}
-```
-
-#### Step 2.3: Reload VS Code
-
-1. Open Command Palette
-2. Type "Developer: Reload Window"
-3. Press Enter
-
-#### Step 2.4: Use Circle Tools in Cline
-
-Open Cline chat and try:
-```
-Authenticate with Google to access Circle community
-```
-
-### 3. Other MCP Clients
-
-#### MCP Inspector (Testing Tool)
-
-For development and debugging:
+### 1. Clone & Install
 
 ```bash
-npx @modelcontextprotocol/inspector node dist/index.js
+git clone https://github.com/DeepakChander/circle-mcp.git
+cd circle-mcp
+npm install
 ```
 
-Then open http://localhost:6274 in your browser.
+### 2. Set Up Google Cloud OAuth
 
-#### Custom Integration
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) → Create a project
+2. **APIs & Services** → **Library** → Enable **Google+ API**
+3. **APIs & Services** → **OAuth consent screen** → Configure (External, add test users)
+4. **APIs & Services** → **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**
+   - Type: **Web application**
+   - Authorized redirect URI: `http://localhost:3000/callback`
+5. Copy the **Client ID** and **Client Secret**
 
-Any MCP-compatible client can connect using stdio transport:
+### 3. Get Circle Credentials
 
-```typescript
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+1. Log into your Circle community admin panel
+2. **Settings** → **API** → Generate a **Headless Access Token**
+3. **Settings** → **API** → Get your **Admin V2 Token**
+4. Note your community URL (e.g., `https://community.yourorg.com`)
 
-const transport = new StdioClientTransport({
-  command: 'node',
-  args: ['/path/to/circle-mcp/dist/index.js'],
-  env: { /* environment variables */ }
-});
+### 4. Configure Environment
 
-const client = new Client({
-  name: 'my-client',
-  version: '1.0.0'
-}, {
-  capabilities: {}
-});
-
-await client.connect(transport);
+```bash
+cp .env.example .env
 ```
 
----
+Edit `.env` with your credentials:
 
-## 🛠️ Available Tools
-
-The Circle MCP server provides 20+ tools across multiple categories:
-
-### Authentication Tools
-
-| Tool | Description | Auth Required |
-|------|-------------|---------------|
-| `authenticate_with_google` | Start Google OAuth flow | No |
-| `check_auth_status` | Check current authentication status | No |
-| `logout` | Logout and clear tokens | Yes |
-
-### Profile Tools
-
-| Tool | Description | Auth Required |
-|------|-------------|---------------|
-| `get_my_profile` | Get your Circle profile | Yes |
-| `update_my_profile` | Update your profile | Yes |
-
-### Course Tools
-
-| Tool | Description | Auth Required |
-|------|-------------|---------------|
-| `get_my_courses` | Get courses you're enrolled in | Yes |
-| `get_course_details` | Get detailed course information | Yes |
-
-### Post Tools
-
-| Tool | Description | Auth Required |
-|------|-------------|---------------|
-| `get_posts` | Get posts from community | Yes |
-| `create_post` | Create a new post | Yes |
-| `update_post` | Update an existing post | Yes |
-| `delete_post` | Delete a post | Yes |
-| `like_post` | Like a post | Yes |
-| `unlike_post` | Unlike a post | Yes |
-
-### Space Tools
-
-| Tool | Description | Auth Required |
-|------|-------------|---------------|
-| `get_spaces` | Get all community spaces | Yes |
-| `get_space_members` | Get members of a space | Yes |
-
-### Event Tools
-
-| Tool | Description | Auth Required |
-|------|-------------|---------------|
-| `get_events` | Get upcoming events | Yes |
-| `get_event_details` | Get event details | Yes |
-| `rsvp_event` | RSVP to an event | Yes |
-
-### Notification Tools
-
-| Tool | Description | Auth Required |
-|------|-------------|---------------|
-| `get_notifications` | Get your notifications | Yes |
-| `mark_notification_read` | Mark notification as read | Yes |
-
-### Message Tools
-
-| Tool | Description | Auth Required |
-|------|-------------|---------------|
-| `get_direct_messages` | Get your direct messages | Yes |
-| `send_direct_message` | Send a direct message | Yes |
-
-### Feed Tools
-
-| Tool | Description | Auth Required |
-|------|-------------|---------------|
-| `get_feed` | Get your personalized feed | Yes |
-
-### Comment Tools
-
-| Tool | Description | Auth Required |
-|------|-------------|---------------|
-| `get_post_comments` | Get comments on a post | Yes |
-| `create_comment` | Create a comment | Yes |
-| `update_comment` | Update a comment | Yes |
-| `delete_comment` | Delete a comment | Yes |
-
----
-
-## 📚 Usage Examples
-
-### Example 1: Authenticate with Google
-
-**User prompt in Claude Desktop:**
-```
-Please authenticate with Google so I can access Circle features
-```
-
-**What happens:**
-1. MCP server receives `authenticate_with_google` tool call
-2. OAuth server starts on http://localhost:3000
-3. Browser opens for Google sign-in
-4. User signs in and authorizes
-5. Tokens are exchanged and stored
-6. Circle authentication completes
-
-### Example 2: Get Your Profile
-
-**User prompt:**
-```
-Show me my Circle profile
-```
-
-**MCP tool called:**
-```json
-{
-  "name": "get_my_profile",
-  "arguments": {}
-}
-```
-
-**Response:**
-```json
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "bio": "Community member",
-  "member_since": "2024-01-15"
-}
-```
-
-### Example 3: Get Your Courses
-
-**User prompt:**
-```
-What courses am I enrolled in?
-```
-
-**MCP tool called:**
-```json
-{
-  "name": "get_my_courses",
-  "arguments": {}
-}
-```
-
-### Example 4: Create a Post
-
-**User prompt:**
-```
-Create a post in the General space with title "Hello World" and body "This is my first post!"
-```
-
-**MCP tool called:**
-```json
-{
-  "name": "create_post",
-  "arguments": {
-    "space_id": "12345",
-    "title": "Hello World",
-    "body": "This is my first post!"
-  }
-}
-```
-
-### Example 5: Get Events
-
-**User prompt:**
-```
-Show me upcoming events in the community
-```
-
-**MCP tool called:**
-```json
-{
-  "name": "get_events",
-  "arguments": {}
-}
-```
-
----
-
-## 🐛 Troubleshooting
-
-### Issue: "GCP_CLIENT_ID not configured"
-
-**Solution:**
-1. Ensure `.env` file exists in project root
-2. Add `GCP_CLIENT_ID` with your actual Google OAuth Client ID
-3. Verify the Client ID ends with `.apps.googleusercontent.com`
-
-### Issue: "redirect_uri_mismatch"
-
-**Error Message:**
-```
-Error 400: redirect_uri_mismatch
-```
-
-**Solution:**
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Navigate to APIs & Services → Credentials
-3. Click on your OAuth 2.0 Client ID
-4. Under "Authorized redirect URIs", add exactly:
-   ```
-   http://localhost:3000/auth/google/callback
-   ```
-5. Click Save
-6. Wait 5 minutes for changes to propagate
-
-### Issue: "Port 3000 already in use"
-
-**Solution:**
-Change the port in `.env`:
 ```env
-OAUTH_PORT=3001
-GCP_REDIRECT_URI=http://localhost:3001/auth/google/callback
+# Circle LMS (Required)
+CIRCLE_HEADLESS_TOKEN=your_circle_headless_token
+CIRCLE_ADMIN_V2_TOKEN=your_circle_admin_v2_token
+CIRCLE_COMMUNITY_URL=https://your-community.circle.so
+CIRCLE_HEADLESS_BASE_URL=https://app.circle.so
+
+# Google OAuth (Required)
+GCP_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GCP_CLIENT_SECRET=GOCSPX-your-secret
+GCP_REDIRECT_URI=http://localhost:3000/callback
+
+# Server
+SERVER_URL=http://localhost:3000
+PORT=3000
 ```
 
-**Remember:** Update the redirect URI in Google Cloud Console too!
+### 5. Build & Run
 
-### Issue: "User not found in Circle community"
-
-**Error Message:**
-```
-Circle authentication failed: User not found
-```
-
-**Solution:**
-1. Ensure your Google account email is registered in the Circle community
-2. Go to your Circle community and check your account email
-3. Make sure it matches the Google account you're using to authenticate
-
-### Issue: Browser doesn't open during OAuth
-
-**Solution:**
-1. Check the terminal for the OAuth URL
-2. Manually copy and paste the URL into your browser
-3. Complete the authentication flow
-
-### Issue: TypeScript compilation errors
-
-**Solution:**
 ```bash
-# Clean and rebuild
+npm run build
+npm run start:http
+```
+
+### 6. Verify
+
+```bash
+# Health check
+curl http://localhost:3000/health
+
+# OAuth metadata (should return JSON)
+curl http://localhost:3000/.well-known/oauth-authorization-server
+
+# Should return 401 (no auth token — this is correct)
+curl -X POST http://localhost:3000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"initialize","id":1}'
+```
+
+---
+
+## IDE Setup (For Students/Users)
+
+Your organization admin gives you a URL (e.g., `https://circle.10x.in/mcp`). Here's how to use it:
+
+### Cursor
+
+Create `.cursor/mcp.json` in your project:
+
+```json
+{
+  "mcpServers": {
+    "circle": {
+      "url": "https://circle.10x.in/mcp"
+    }
+  }
+}
+```
+
+### Claude Code (CLI)
+
+```bash
+claude mcp add circle --transport http https://circle.10x.in/mcp
+```
+
+### VS Code
+
+Add to `.vscode/settings.json`:
+
+```json
+{
+  "mcp.servers": {
+    "circle": {
+      "type": "http",
+      "url": "https://circle.10x.in/mcp"
+    }
+  }
+}
+```
+
+### Windsurf
+
+Edit `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "circle": {
+      "url": "https://circle.10x.in/mcp"
+    }
+  }
+}
+```
+
+### Claude Desktop
+
+Edit `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "circle": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://circle.10x.in/mcp"]
+    }
+  }
+}
+```
+
+> **Note:** Replace `https://circle.10x.in/mcp` with your organization's actual MCP URL.
+
+---
+
+## Available Tools
+
+### Profile
+| Tool | Description |
+|------|-------------|
+| `get_my_profile` | Get your Circle profile details |
+| `update_my_profile` | Update name, bio, headline, location, website |
+
+### Courses
+| Tool | Description |
+|------|-------------|
+| `get_my_courses` | List courses you're enrolled in |
+| `get_course_details` | Get detailed info about a specific course |
+
+### Posts
+| Tool | Description |
+|------|-------------|
+| `get_posts` | List posts from a space or all spaces |
+| `create_post` | Create a new post in a space |
+| `update_post` | Edit your own post |
+| `delete_post` | Delete your own post |
+| `like_post` | Like or unlike a post |
+
+### Spaces
+| Tool | Description |
+|------|-------------|
+| `get_spaces` | List all community spaces |
+
+### Events
+| Tool | Description |
+|------|-------------|
+| `get_events` | List upcoming events |
+| `rsvp_event` | Register for an event |
+
+### Comments
+| Tool | Description |
+|------|-------------|
+| `get_comments` | Get comments on a post |
+| `add_comment` | Comment on a post |
+| `delete_comment` | Delete your own comment |
+| `like_comment` | Like or unlike a comment |
+
+### Feed & Notifications
+| Tool | Description |
+|------|-------------|
+| `get_feed` | Get your personalized home feed |
+| `get_notifications` | Get your notifications |
+| `get_messages` | Get your direct messages |
+
+---
+
+## Architecture
+
+```
+IDE (Cursor / Claude Code / VS Code / Windsurf)
+    |
+    |  POST https://circle.10x.in/mcp
+    |  Authorization: Bearer <mcp_token>
+    |
+    v
++---------------------------------------------------+
+|  Express HTTP Server (src/http-server.ts)          |
+|                                                    |
+|  OAuth 2.1 Endpoints:                              |
+|  GET  /.well-known/oauth-protected-resource        |
+|  GET  /.well-known/oauth-authorization-server      |
+|  POST /register  (Dynamic Client Registration)     |
+|  GET  /authorize (redirects to Google)             |
+|  GET  /callback  (Google -> Circle auth -> token)  |
+|  POST /token     (code exchange + refresh)         |
+|                                                    |
+|  MCP Endpoints (Streamable HTTP):                  |
+|  POST   /mcp  (JSON-RPC tool calls)               |
+|  GET    /mcp  (SSE notifications)                  |
+|  DELETE /mcp  (session termination)                |
++-------------------------+--------------------------+
+                          |
+                          v
++---------------------------------------------------+
+|  Per-Session McpServer (src/server.ts)             |
+|  - Created per authenticated user                  |
+|  - 20+ tools with email pre-injected              |
+|  - Prompts + Resources                             |
++-------------------------+--------------------------+
+                          |
+                          v
++---------------------------------------------------+
+|  Circle API Client (src/api/client.ts)             |
+|  - Headless API authentication                     |
+|  - Rate limiting + retry logic                     |
++---------------------------------------------------+
+```
+
+### OAuth Flow (First-Time Authentication)
+
+```
+1. IDE sends POST /mcp (no token)
+2. Server returns 401 + WWW-Authenticate header
+3. IDE discovers OAuth metadata via .well-known endpoints
+4. IDE registers as OAuth client (POST /register)
+5. IDE opens browser to /authorize with PKCE challenge
+6. Server redirects to Google OAuth
+7. User signs in with Google
+8. Google redirects back to /callback with auth code
+9. Server exchanges Google code for email
+10. Server verifies email exists in Circle community
+11. Server generates MCP authorization code
+12. IDE exchanges code for MCP access token (POST /token)
+13. IDE sends POST /mcp with Bearer token — tools work!
+```
+
+---
+
+## Production Deployment
+
+### Environment Changes
+
+| Setting | Localhost | Production |
+|---------|-----------|------------|
+| `SERVER_URL` | `http://localhost:3000` | `https://circle.10x.in` |
+| `GCP_REDIRECT_URI` | `http://localhost:3000/callback` | `https://circle.10x.in/callback` |
+| `NODE_ENV` | `development` | `production` |
+| `ALLOWED_ORIGINS` | `*` | `https://circle.10x.in` |
+
+### GCP Console
+
+Add `https://circle.10x.in/callback` as an authorized redirect URI in your GCP OAuth credentials.
+
+### Nginx + SSL
+
+```bash
+sudo apt install nginx certbot python3-certbot-nginx
+sudo certbot --nginx -d circle.10x.in
+```
+
+Nginx config (`/etc/nginx/sites-available/circle-mcp`):
+
+```nginx
+server {
+    listen 80;
+    server_name circle.10x.in;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name circle.10x.in;
+
+    ssl_certificate /etc/letsencrypt/live/circle.10x.in/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/circle.10x.in/privkey.pem;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # SSE support
+        proxy_buffering off;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 300s;
+    }
+}
+```
+
+### Run with PM2
+
+```bash
+npm run build
+pm2 start dist/http-server.js --name circle-mcp
+pm2 save
+```
+
+### Docker
+
+```bash
+docker build -t circle-mcp .
+docker run -d --env-file .env -p 3000:3000 --name circle-mcp circle-mcp
+```
+
+---
+
+## Multi-Organization Support
+
+This is open-source. Each organization deploys their own instance with their own credentials. Deployments are completely independent.
+
+**Example:** AcademyX wants to use this for their Circle community.
+
+1. Clone this repo and configure `.env` with AcademyX Circle + GCP credentials
+2. Deploy and point `mcp.academyx.com` to the server
+3. Give students: `{"mcpServers": {"circle": {"url": "https://mcp.academyx.com/mcp"}}}`
+
+Only AcademyX students (emails in their Circle LMS) can authenticate. Other organizations' students cannot access it.
+
+---
+
+## Project Structure
+
+```
+circle-mcp/
+├── src/
+│   ├── index.ts                      # Stdio entry point (local dev)
+│   ├── http-server.ts                # HTTP server entry point (production)
+│   ├── server.ts                     # MCP server factory + stdio class
+│   ├── auth/
+│   │   ├── mcp-oauth-server.ts       # OAuth 2.1 Authorization Server
+│   │   ├── session-manager.ts        # Token-to-email + session tracking
+│   │   ├── gcp-auth.ts               # Google OAuth 2.0 client
+│   │   ├── auth.ts                   # Circle headless authentication
+│   │   ├── integrated-auth-manager.ts # Auth orchestration (stdio mode)
+│   │   ├── token-manager.ts          # In-memory token storage
+│   │   └── types.ts                  # Auth type definitions
+│   ├── api/
+│   │   ├── client.ts                 # Circle API client (rate limiting, retry)
+│   │   └── endpoints.ts              # Circle API URL builders
+│   ├── tools/
+│   │   ├── index.ts                  # Tool registration (stdio + session)
+│   │   ├── auth-wrapper.ts           # withAuthentication + withSessionAuth
+│   │   ├── profile.ts                # Profile tools
+│   │   ├── courses.ts                # Course tools
+│   │   ├── posts.ts                  # Post tools
+│   │   ├── spaces.ts                 # Space tools
+│   │   ├── events.ts                 # Event tools
+│   │   ├── notifications.ts          # Notification tools
+│   │   ├── messages.ts               # Message tools
+│   │   ├── feed.ts                   # Feed tools
+│   │   └── comments.ts              # Comment tools
+│   ├── config/
+│   │   ├── config.ts                 # Environment config loader
+│   │   └── constants.ts              # App constants
+│   ├── types/
+│   │   ├── mcp.ts                    # MCP + config types
+│   │   ├── circle.ts                 # Circle API types
+│   │   └── index.ts                  # Type re-exports
+│   ├── prompts/
+│   │   └── index.ts                  # MCP prompts
+│   ├── resources/
+│   │   └── index.ts                  # MCP resources
+│   └── utils/
+│       ├── logger.ts                 # Winston logger
+│       ├── errors.ts                 # Error utilities
+│       ├── response-handler.ts       # Response formatting
+│       └── validators.ts            # Input validation
+├── .env.example                      # Environment template
+├── package.json
+├── tsconfig.json
+├── Dockerfile
+├── docker-compose.yml
+├── nginx.conf
+└── ecosystem.config.js               # PM2 config
+```
+
+---
+
+## Scripts
+
+```bash
+npm run build        # Compile TypeScript
+npm run start        # Start stdio server (local dev with Claude Desktop)
+npm run start:http   # Start HTTP server (production, remote IDEs)
+npm run dev          # Dev mode with watch (stdio)
+npm run dev:http     # Dev mode with watch (HTTP)
+npm run typecheck    # Type check without emitting
+npm run test         # Run tests
+```
+
+---
+
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `CIRCLE_HEADLESS_TOKEN` | Yes | — | Circle API headless token |
+| `CIRCLE_ADMIN_V2_TOKEN` | Yes | — | Circle Admin API v2 token |
+| `CIRCLE_COMMUNITY_URL` | Yes | — | Your Circle community URL |
+| `CIRCLE_HEADLESS_BASE_URL` | No | `https://app.circle.so` | Circle API base URL |
+| `GCP_CLIENT_ID` | Yes | — | Google OAuth Client ID |
+| `GCP_CLIENT_SECRET` | Yes | — | Google OAuth Client Secret |
+| `GCP_REDIRECT_URI` | Yes | `http://localhost:3000/callback` | OAuth redirect URI |
+| `SERVER_URL` | No | `http://localhost:3000` | Public server URL |
+| `PORT` | No | `3000` | Server port |
+| `HOST` | No | `0.0.0.0` | Server host |
+| `NODE_ENV` | No | `development` | Environment |
+| `LOG_LEVEL` | No | `info` | Logging level |
+| `MCP_TOKEN_EXPIRY` | No | `3600` | Access token TTL (seconds) |
+| `MCP_REFRESH_TOKEN_EXPIRY` | No | `2592000` | Refresh token TTL (30 days) |
+| `READ_ONLY_MODE` | No | `false` | Disable write operations |
+| `ENABLE_RATE_LIMITING` | No | `true` | Rate limit API calls |
+| `MAX_REQUESTS_PER_MINUTE` | No | `60` | Rate limit threshold |
+| `ALLOWED_ORIGINS` | No | `*` | CORS allowed origins |
+
+---
+
+## Security
+
+| Feature | Implementation |
+|---------|---------------|
+| **PKCE (S256)** | Mandatory on all OAuth flows. Prevents authorization code interception. |
+| **State parameter** | Passed through Google redirect. Prevents CSRF. |
+| **Opaque tokens** | UUIDs, not JWTs. Server-side lookup. Instantly revocable. |
+| **Token expiry** | Access: 1 hour. Refresh: 30 days. Auth codes: 10 minutes. |
+| **Token rotation** | Refresh grants issue new refresh token, old one is deleted. |
+| **Membership check** | Email must exist in the Circle community. Non-members are rejected. |
+| **HTTPS** | Required in production (Nginx + Let's Encrypt). |
+| **In-memory storage** | Tokens are lost on restart. Users re-auth seamlessly via Google session. |
+| **Periodic cleanup** | Expired tokens, codes, and stale registrations purged every 5 minutes. |
+
+---
+
+## Troubleshooting
+
+### `redirect_uri_mismatch` from Google
+
+Your GCP OAuth redirect URI doesn't match. In [Google Cloud Console](https://console.cloud.google.com/) → Credentials → your OAuth client, add exactly:
+- Localhost: `http://localhost:3000/callback`
+- Production: `https://your-domain.com/callback`
+
+### "Email not registered in this community"
+
+The Google account email isn't a member of the Circle community. The user needs to be added to Circle first.
+
+### Port 3000 already in use
+
+Change `PORT` in `.env` and update `GCP_REDIRECT_URI` accordingly.
+
+### MCP not connecting in IDE
+
+1. Verify the server is running: `curl http://localhost:3000/health`
+2. Check OAuth metadata: `curl http://localhost:3000/.well-known/oauth-authorization-server`
+3. Ensure the URL in your IDE config ends with `/mcp`
+
+### TypeScript build errors
+
+```bash
 rm -rf dist node_modules
 npm install
 npm run build
 ```
 
-### Issue: "Cannot find module" errors
+---
 
-**Solution:**
-```bash
-# Reinstall dependencies
-npm install
-```
+## License
 
-### Issue: MCP Server not showing in Claude Desktop
-
-**Solution:**
-1. Check `claude_desktop_config.json` syntax (valid JSON)
-2. Verify the path to `dist/index.js` is absolute and correct
-3. Ensure the server builds successfully (`npm run build`)
-4. Restart Claude Desktop completely (quit and relaunch)
-5. Check Claude Desktop logs:
-   - macOS: `~/Library/Logs/Claude/mcp*.log`
-   - Windows: `%APPDATA%\Claude\logs\mcp*.log`
-
-### Issue: OAuth authentication fails silently
-
-**Solution:**
-1. Check if you added your email as a test user in GCP OAuth consent screen
-2. Verify your GCP project has Google+ API enabled
-3. Check server logs for detailed error messages
-4. Try the interactive test: `node test-oauth-interactive.js`
+MIT
 
 ---
 
-## 👨‍💻 Development
-
-### Project Structure
-
-```
-circle-mcp/
-├── src/
-│   ├── index.ts                 # Entry point
-│   ├── server.ts                # MCP server implementation
-│   ├── config/
-│   │   └── config.ts            # Configuration management
-│   ├── auth/
-│   │   ├── gcp-auth.ts          # Google OAuth 2.0
-│   │   ├── integrated-auth-manager.ts  # Auth orchestration
-│   │   ├── oauth-server.ts      # OAuth callback server
-│   │   ├── token-manager.ts     # Token refresh logic
-│   │   └── user-storage.ts      # User data persistence
-│   ├── api/
-│   │   ├── client.ts            # Circle API client
-│   │   └── endpoints.ts         # API endpoints
-│   ├── tools/
-│   │   ├── auth-wrapper.ts      # Authentication wrapper
-│   │   ├── profile.ts           # Profile tools
-│   │   ├── courses.ts           # Course tools
-│   │   ├── posts.ts             # Post tools
-│   │   ├── spaces.ts            # Space tools
-│   │   ├── events.ts            # Event tools
-│   │   ├── notifications.ts     # Notification tools
-│   │   ├── messages.ts          # Message tools
-│   │   ├── feed.ts              # Feed tools
-│   │   └── comments.ts          # Comment tools
-│   ├── types/
-│   │   └── circle.ts            # TypeScript types
-│   └── utils/
-│       ├── error-handler.ts     # Error handling
-│       ├── logger.ts            # Winston logger
-│       └── validators.ts        # Input validation
-├── dist/                        # Compiled JavaScript
-├── test-oauth-flow.js           # Configuration test
-├── test-oauth-automated.js      # Automated tests
-├── test-oauth-interactive.js    # Interactive OAuth test
-├── verify-setup.js              # Setup verification
-├── package.json
-├── tsconfig.json
-├── .env                         # Environment variables (create this)
-└── README.md
-```
-
-### Available Scripts
-
-```bash
-# Development
-npm run build          # Compile TypeScript
-npm run typecheck      # Type check without building
-npm start              # Start the MCP server
-npm run dev            # Development mode with watch
-
-# Testing
-node verify-setup.js              # Verify complete setup
-node test-oauth-flow.js           # Test OAuth configuration
-node test-oauth-automated.js      # Automated server tests
-node test-oauth-interactive.js    # Interactive OAuth testing
-
-# Debugging
-npx @modelcontextprotocol/inspector node dist/index.js  # MCP Inspector
-```
-
-### Adding New Tools
-
-1. Create a new file in `src/tools/your-tool.ts`
-2. Import the authentication wrapper:
-   ```typescript
-   import { withAuthentication } from './auth-wrapper.js';
-   ```
-3. Define your tool with authentication:
-   ```typescript
-   export function registerYourTools(
-     server: McpServer,
-     apiClient: CircleAPIClient,
-     authManager: IntegratedAuthManager
-   ) {
-     server.registerTool(
-       'your_tool_name',
-       {
-         description: 'What your tool does',
-         inputSchema: zodToJsonSchema(YourInputSchema)
-       },
-       withAuthentication(authManager, async (params) => {
-         const email = (params as any).authenticatedEmail;
-         // Your implementation
-       })
-     );
-   }
-   ```
-4. Register in `src/server.ts`
-
-### Environment Variables for Development
-
-```env
-# Enable debug logging
-LOG_LEVEL=debug
-
-# Test with read-only mode
-READ_ONLY_MODE=true
-
-# Use different OAuth port
-OAUTH_PORT=3001
-```
-
-### Running Tests
-
-```bash
-# Full test suite
-npm run build
-node verify-setup.js
-node test-oauth-automated.js
-node test-oauth-interactive.js
-```
-
-### Debugging Tips
-
-1. **Enable debug logging:**
-   ```env
-   LOG_LEVEL=debug
-   ```
-
-2. **Check MCP Inspector:**
-   ```bash
-   npx @modelcontextprotocol/inspector node dist/index.js
-   ```
-
-3. **Monitor server logs:**
-   - Logs are output to stderr
-   - In Claude Desktop, check log files in the Claude logs directory
-
-4. **Test authentication separately:**
-   ```bash
-   node test-oauth-interactive.js
-   ```
-
----
-
-## 📄 License
-
-MIT License - see LICENSE file for details
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
----
-
-## 📞 Support
-
-If you encounter issues:
-
-1. Check the [Troubleshooting](#-troubleshooting) section
-2. Review server logs for detailed error messages
-3. Run `node verify-setup.js` to check configuration
-4. Test OAuth flow with `node test-oauth-interactive.js`
-5. Check GCP OAuth consent screen configuration
-6. Verify your email is added as a test user (if app is in testing mode)
-
----
-
-## 🎉 Quick Start Summary
-
-```bash
-# 1. Install dependencies
-npm install
-
-# 2. Create .env file with your credentials
-cp .env.example .env  # Then edit with your values
-
-# 3. Build the project
-npm run build
-
-# 4. Verify setup
-node verify-setup.js
-
-# 5. Test OAuth
-node test-oauth-interactive.js
-
-# 6. Add to Claude Desktop config
-# Edit claude_desktop_config.json (see IDE Integration section)
-
-# 7. Restart Claude Desktop and start chatting!
-```
-
----
-
-**Built with ❤️ using [Model Context Protocol](https://modelcontextprotocol.io/)**
+Built with [Model Context Protocol](https://modelcontextprotocol.io/) and [Circle API](https://api.circle.so/)

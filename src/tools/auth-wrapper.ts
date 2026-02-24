@@ -104,3 +104,18 @@ export function extractEmailFromParams<T extends AuthenticatedToolParams>(params
   const { email, ...cleanParams } = params;
   return { email, cleanParams };
 }
+
+/**
+ * Wrapper for session-based (HTTP transport) tools.
+ * Pre-injects the authenticated email into params so tools
+ * work exactly like the auth-manager path.
+ */
+export function withSessionAuth(
+  email: string,
+  toolFunction: (params: any) => Promise<any>
+) {
+  return async (params: any): Promise<any> => {
+    const paramsWithEmail = { ...params, authenticatedEmail: email };
+    return toolFunction(paramsWithEmail);
+  };
+}

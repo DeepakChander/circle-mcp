@@ -5,10 +5,70 @@ import type { IntegratedAuthManager } from '../auth/integrated-auth-manager.js';
 import { endpoints } from '../api/endpoints.js';
 import { Logger } from '../utils/logger.js';
 import type { CircleEvent } from '../types/index.js';
-import { withAuthentication } from './auth-wrapper.js';
+import { withAuthentication, withSessionAuth } from './auth-wrapper.js';
 import { extractArrayFromResponse, formatErrorMessage } from '../utils/response-handler.js';
 
 const logger = new Logger('EventTools');
+
+function createGetEventsHandler(apiClient: CircleAPIClient) {
+  return async (params: any) => {
+    try {
+      const email = params.authenticatedEmail;
+      const response = await apiClient.get<any>(endpoints.getEvents(params), email);
+      const eventsArray = extractArrayFromResponse<CircleEvent>(response);
+
+      if (eventsArray.length === 0) {
+        return { content: [{ type: 'text', text: 'No upcoming events found. Check back later for new events!' }] };
+      }
+
+      const events = eventsArray.map(event => ({
+        id: event.id, name: event.name, starts_at: event.starts_at,
+        location: event.location_type, attendees: event.attendees_count || 0,
+        is_attending: event.is_attending || false,
+      }));
+
+      return { content: [{ type: 'text', text: JSON.stringify({ total: events.length, events }, null, 2) }] };
+    } catch (error) {
+      logger.error('Failed to get events', error as Error);
+      return { content: [{ type: 'text', text: `Error: ${formatErrorMessage(error)}` }], isError: true };
+    }
+  };
+}
+
+function createRsvpEventHandler(apiClient: CircleAPIClient) {
+  return async (params: any) => {
+    try {
+      const email = params.authenticatedEmail;
+      await apiClient.post(endpoints.rsvpEvent(params.event_id), email, {});
+      return { content: [{ type: 'text', text: 'Successfully registered for event' }] };
+    } catch (error) {
+      logger.error('Failed to RSVP event', error as Error);
+      return { content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}` }], isError: true };
+    }
+  };
+}
+
+export function registerEventToolsForSession(
+  server: McpServer,
+  apiClient: CircleAPIClient,
+  email: string,
+  readOnlyMode: boolean
+): void {
+  server.registerTool('get_events', {
+    title: 'Get Events', description: 'List upcoming community events',
+    inputSchema: {
+      page: z.number().int().positive().default(1),
+      per_page: z.number().int().positive().max(100).default(20),
+    },
+  }, withSessionAuth(email, createGetEventsHandler(apiClient)));
+
+  if (!readOnlyMode) {
+    server.registerTool('rsvp_event', {
+      title: 'RSVP to Event', description: 'Register for an event',
+      inputSchema: { event_id: z.number().int().positive() },
+    }, withSessionAuth(email, createRsvpEventHandler(apiClient)));
+  }
+}
 
 export function registerEventTools(
   server: McpServer,

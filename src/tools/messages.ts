@@ -3,6 +3,22 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CircleAPIClient } from '../api/client.js';
 import type { IntegratedAuthManager } from '../auth/integrated-auth-manager.js';
 
+export function registerMessageToolsForSession(
+  server: McpServer,
+  _apiClient: CircleAPIClient,
+  _email: string
+): void {
+  server.registerTool('get_messages', {
+    title: 'Get Messages', description: 'List your direct messages',
+    inputSchema: {
+      page: z.number().int().positive().default(1),
+      per_page: z.number().int().positive().max(100).default(20),
+    },
+  }, async () => ({
+    content: [{ type: 'text', text: 'Messages feature coming soon' }],
+  }));
+}
+
 export function registerMessageTools(
   server: McpServer,
   _apiClient: CircleAPIClient,

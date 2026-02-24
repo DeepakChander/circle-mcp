@@ -5,11 +5,284 @@ import type { CircleAPIClient } from '../api/client.js';
 import type { IntegratedAuthManager } from '../auth/integrated-auth-manager.js';
 import { endpoints } from '../api/endpoints.js';
 import { Logger } from '../utils/logger.js';
-import { withAuthentication } from './auth-wrapper.js';
+import { withAuthentication, withSessionAuth } from './auth-wrapper.js';
 import { formatErrorMessage } from '../utils/response-handler.js';
 import { config } from '../config/config.js';
 
 const logger = new Logger('ProfileTools');
+
+// Shared tool handler factory for profile tools
+function createGetMyProfileHandler(_apiClient: CircleAPIClient) {
+  return async (params: any) => {
+    try {
+      const email = params.authenticatedEmail;
+
+      logger.info('Fetching profile with Admin API v2', { email });
+
+      if (!config.adminV2Token) {
+        logger.warn('Admin V2 token not configured, trying fallback method');
+        return {
+          content: [{
+            type: 'text',
+            text: `Admin API v2 token not configured.\n\nTo get full profile data, please add CIRCLE_ADMIN_V2_TOKEN to your .env file.\n\nCreate token at: ${config.communityUrl}/admin/settings/developers`,
+          }],
+        };
+      }
+
+      logger.debug('Fetching community members from Admin API v2');
+
+      async function fetchMemberByEmail(targetEmail: string, page = 1, maxPages = 10): Promise<any> {
+        try {
+          const response = await axios.get(
+            `${config.headlessBaseUrl}/api/admin/v2/community_members`,
+            {
+              params: { page, per_page: 100 },
+              headers: {
+                'Authorization': `Bearer ${config.adminV2Token}`,
+                'Content-Type': 'application/json',
+              },
+              timeout: 15000,
+            }
+          );
+
+          const members = response.data?.records || response.data?.data || [];
+          const member = members.find((m: any) =>
+            m.email === targetEmail ||
+            m.user_email === targetEmail ||
+            (m.user && m.user.email === targetEmail)
+          );
+
+          if (member) return member;
+
+          const hasNextPage = response.data?.has_next_page || response.data?.meta?.has_next_page;
+          if (hasNextPage && page < maxPages) {
+            logger.debug(`Member not found on page ${page}, checking next page`);
+            return fetchMemberByEmail(targetEmail, page + 1, maxPages);
+          }
+
+          return null;
+        } catch (error) {
+          logger.error('Failed to fetch members from Admin API v2', error as Error);
+          throw error;
+        }
+      }
+
+      const profile = await fetchMemberByEmail(email);
+
+      if (!profile) {
+        return {
+          content: [{
+            type: 'text',
+            text: `No profile found for ${email}.\n\nThis email may not be a member of this Circle community.`,
+          }],
+        };
+      }
+
+      logger.info('Found profile via Admin API v2', { email, name: profile.name });
+
+      const flattenedFields = profile.flattened_profile_fields || {};
+      const formattedProfile: any = {
+        id: profile.id,
+        name: profile.name || 'Not set',
+        first_name: profile.first_name || null,
+        last_name: profile.last_name || null,
+        email: profile.email || email,
+        headline: flattenedFields.headline || profile.headline || '',
+        bio: flattenedFields.bio || profile.bio || '',
+        location: flattenedFields.location || '',
+        website: flattenedFields.website || '',
+        avatar_url: profile.avatar_url || null,
+        profile_url: profile.profile_url || null,
+        member_since: profile.created_at || 'Unknown',
+        last_seen_at: profile.last_seen_at || null,
+        active: profile.active || false,
+        posts_count: profile.posts_count || 0,
+        comments_count: profile.comments_count || 0,
+      };
+
+      if (Object.keys(flattenedFields).length > 0) {
+        formattedProfile.custom_fields = flattenedFields;
+      }
+      if (profile.gamification_stats) {
+        formattedProfile.gamification = {
+          total_points: profile.gamification_stats.total_points,
+          current_level: profile.gamification_stats.current_level,
+          level_name: profile.gamification_stats.current_level_name,
+          points_to_next_level: profile.gamification_stats.points_to_next_level,
+        };
+      }
+      if (profile.activity_score) {
+        formattedProfile.activity = profile.activity_score;
+      }
+      if (profile.member_tags && profile.member_tags.length > 0) {
+        formattedProfile.tags = profile.member_tags.map((tag: any) => tag.name);
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: `Your Circle Profile:\n\n${JSON.stringify(formattedProfile, null, 2)}`,
+        }],
+      };
+    } catch (error) {
+      logger.error('Failed to get profile', error as Error);
+
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          return {
+            content: [{
+              type: 'text',
+              text: `Authentication failed. Please ensure your CIRCLE_ADMIN_V2_TOKEN is valid.\n\nCreate a new token at: ${config.communityUrl}/admin/settings/developers`,
+            }],
+            isError: true,
+          };
+        }
+        if (error.response?.status === 404) {
+          return {
+            content: [{
+              type: 'text',
+              text: `Admin API v2 endpoint not found. Please verify your Circle configuration.`,
+            }],
+            isError: true,
+          };
+        }
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: `Error retrieving profile: ${formatErrorMessage(error)}`,
+        }],
+        isError: true,
+      };
+    }
+  };
+}
+
+function createUpdateMyProfileHandler(apiClient: CircleAPIClient) {
+  return async (params: any) => {
+    try {
+      const userEmail = params.authenticatedEmail;
+      const { email, authenticatedEmail, custom_fields, ...updateData } = params;
+
+      if (config.adminV2Token) {
+        logger.info('Updating profile via Admin API v2', { email: userEmail });
+
+        async function fetchMemberByEmail(targetEmail: string, page = 1): Promise<any> {
+          const response = await axios.get(
+            `${config.headlessBaseUrl}/api/admin/v2/community_members`,
+            {
+              params: { page, per_page: 100 },
+              headers: {
+                'Authorization': `Bearer ${config.adminV2Token}`,
+                'Content-Type': 'application/json',
+              },
+              timeout: 15000,
+            }
+          );
+
+          const members = response.data?.records || response.data?.data || [];
+          const member = members.find((m: any) => m.email === targetEmail);
+
+          if (member) return member;
+
+          const hasNextPage = response.data?.has_next_page;
+          if (hasNextPage && page < 10) {
+            return fetchMemberByEmail(targetEmail, page + 1);
+          }
+
+          return null;
+        }
+
+        const profile = await fetchMemberByEmail(userEmail);
+
+        if (!profile) {
+          throw new Error('Profile not found for update');
+        }
+
+        const updatePayload: any = {};
+        if (updateData.name) updatePayload.name = updateData.name;
+        if (updateData.first_name) updatePayload.first_name = updateData.first_name;
+        if (updateData.last_name) updatePayload.last_name = updateData.last_name;
+        if (updateData.headline) updatePayload.headline = updateData.headline;
+
+        if (custom_fields || updateData.bio || updateData.location || updateData.website) {
+          updatePayload.profile_fields = {};
+          if (updateData.bio) updatePayload.profile_fields.bio = updateData.bio;
+          if (updateData.location) updatePayload.profile_fields.location = updateData.location;
+          if (updateData.website) updatePayload.profile_fields.website = updateData.website;
+          if (custom_fields) {
+            Object.assign(updatePayload.profile_fields, custom_fields);
+          }
+        }
+
+        await axios.patch(
+          `${config.headlessBaseUrl}/api/admin/v2/community_members/${profile.id}`,
+          updatePayload,
+          {
+            headers: {
+              'Authorization': `Bearer ${config.adminV2Token}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 15000,
+          }
+        );
+
+        return {
+          content: [{ type: 'text', text: 'Profile updated successfully' }],
+        };
+      } else {
+        logger.warn('Admin V2 token not available, using Member API (limited fields)');
+        await apiClient.put(endpoints.updateProfile(), userEmail, updateData);
+
+        return {
+          content: [{ type: 'text', text: 'Profile updated successfully (Note: Some fields may require Admin API v2 token)' }],
+        };
+      }
+    } catch (error) {
+      logger.error('Failed to update profile', error as Error);
+      return {
+        content: [{ type: 'text', text: `Error: ${formatErrorMessage(error)}` }],
+        isError: true,
+      };
+    }
+  };
+}
+
+export function registerProfileToolsForSession(
+  server: McpServer,
+  apiClient: CircleAPIClient,
+  email: string
+): void {
+  server.registerTool(
+    'get_my_profile',
+    {
+      title: 'Get My Profile',
+      description: 'Retrieve your Circle community profile information with full details.',
+      inputSchema: {},
+    },
+    withSessionAuth(email, createGetMyProfileHandler(apiClient))
+  );
+
+  server.registerTool(
+    'update_my_profile',
+    {
+      title: 'Update My Profile',
+      description: 'Update your Circle profile information including name, bio, location, headline, and custom fields',
+      inputSchema: {
+        name: z.string().min(1).max(100).optional(),
+        first_name: z.string().min(1).max(100).optional(),
+        last_name: z.string().min(1).max(100).optional(),
+        bio: z.string().max(2000).optional(),
+        location: z.string().max(200).optional(),
+        headline: z.string().max(200).optional(),
+        website: z.string().url().optional(),
+        custom_fields: z.record(z.any()).optional(),
+      },
+    },
+    withSessionAuth(email, createUpdateMyProfileHandler(apiClient))
+  );
+}
 
 export function registerProfileTools(
   server: McpServer,

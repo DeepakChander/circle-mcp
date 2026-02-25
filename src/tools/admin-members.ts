@@ -81,7 +81,7 @@ export function registerAdminMemberTools(server: McpServer, readOnlyMode: boolea
       try {
         const data = await adminV2Request({
           method: 'GET',
-          endpoint: ADMIN_V2_ENDPOINTS.MEMBER_SEARCH,
+          endpoint: ADMIN_V2_ENDPOINTS.MEMBERS,
           params: { query: params.query, page: params.page, per_page: params.per_page },
         });
         return ok(JSON.stringify(data, null, 2));

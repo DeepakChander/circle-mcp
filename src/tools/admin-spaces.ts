@@ -129,8 +129,8 @@ export function registerAdminSpaceTools(server: McpServer, readOnlyMode: boolean
       try {
         const data = await adminV2Request({
           method: 'GET',
-          endpoint: ADMIN_V2_ENDPOINTS.SPACE_MEMBERS(params.space_id),
-          params: { page: params.page, per_page: params.per_page },
+          endpoint: ADMIN_V2_ENDPOINTS.SPACE_MEMBERS,
+          params: { space_id: params.space_id, page: params.page, per_page: params.per_page },
         });
         return ok(JSON.stringify(data, null, 2));
       } catch (error) {
@@ -315,8 +315,8 @@ export function registerAdminSpaceTools(server: McpServer, readOnlyMode: boolean
         try {
           const data = await adminV2Request({
             method: 'POST',
-            endpoint: ADMIN_V2_ENDPOINTS.SPACE_MEMBERS(params.space_id),
-            data: { community_member_id: params.community_member_id },
+            endpoint: ADMIN_V2_ENDPOINTS.SPACE_MEMBERS,
+            data: { space_id: params.space_id, community_member_id: params.community_member_id },
           });
           return ok(`Member added to space successfully:\n${JSON.stringify(data, null, 2)}`);
         } catch (error) {
@@ -340,7 +340,8 @@ export function registerAdminSpaceTools(server: McpServer, readOnlyMode: boolean
         try {
           await adminV2Request({
             method: 'DELETE',
-            endpoint: ADMIN_V2_ENDPOINTS.SPACE_MEMBER(params.space_id, params.member_id),
+            endpoint: ADMIN_V2_ENDPOINTS.SPACE_MEMBERS,
+            params: { space_id: params.space_id, community_member_id: params.member_id },
           });
           return ok('Member removed from space successfully.');
         } catch (error) {

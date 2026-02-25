@@ -16,7 +16,7 @@ function err(text: string) {
 }
 
 export function registerAdminCommunityTools(server: McpServer, readOnlyMode: boolean): void {
-  // --- Read tools ---
+  // --- Read tools (5) ---
 
   server.registerTool(
     'admin_get_community',
@@ -44,13 +44,17 @@ export function registerAdminCommunityTools(server: McpServer, readOnlyMode: boo
     {
       title: 'Admin: List Profile Fields',
       description: 'List all custom profile fields defined in the community (Admin V2 API)',
-      inputSchema: {},
+      inputSchema: {
+        page: z.number().int().positive().default(1).describe('Page number'),
+        per_page: z.number().int().positive().max(100).default(20).describe('Results per page'),
+      },
     },
-    async () => {
+    async (params) => {
       try {
         const data = await adminV2Request({
           method: 'GET',
           endpoint: ADMIN_V2_ENDPOINTS.PROFILE_FIELDS,
+          params: { page: params.page, per_page: params.per_page },
         });
         return ok(JSON.stringify(data, null, 2));
       } catch (error) {
@@ -61,10 +65,10 @@ export function registerAdminCommunityTools(server: McpServer, readOnlyMode: boo
   );
 
   server.registerTool(
-    'admin_list_forms',
+    'admin_list_all_topics',
     {
-      title: 'Admin: List Forms',
-      description: 'List all forms in the community (Admin V2 API)',
+      title: 'Admin: List All Topics',
+      description: 'List all topics across the community (Admin V2 API)',
       inputSchema: {
         page: z.number().int().positive().default(1).describe('Page number'),
         per_page: z.number().int().positive().max(100).default(20).describe('Results per page'),
@@ -74,71 +78,22 @@ export function registerAdminCommunityTools(server: McpServer, readOnlyMode: boo
       try {
         const data = await adminV2Request({
           method: 'GET',
-          endpoint: ADMIN_V2_ENDPOINTS.FORMS,
+          endpoint: ADMIN_V2_ENDPOINTS.TOPICS,
           params: { page: params.page, per_page: params.per_page },
         });
         return ok(JSON.stringify(data, null, 2));
       } catch (error) {
-        logger.error('Failed to list forms', error as Error);
-        return err(`Failed to list forms: ${formatErrorMessage(error)}`);
+        logger.error('Failed to list all topics', error as Error);
+        return err(`Failed to list all topics: ${formatErrorMessage(error)}`);
       }
     }
   );
 
   server.registerTool(
-    'admin_list_form_submissions',
+    'admin_list_all_course_sections',
     {
-      title: 'Admin: List Form Submissions',
-      description: 'List submissions for a specific form (Admin V2 API)',
-      inputSchema: {
-        form_id: z.number().int().positive().describe('Form ID'),
-        page: z.number().int().positive().default(1).describe('Page number'),
-        per_page: z.number().int().positive().max(100).default(20).describe('Results per page'),
-      },
-    },
-    async (params) => {
-      try {
-        const data = await adminV2Request({
-          method: 'GET',
-          endpoint: ADMIN_V2_ENDPOINTS.FORM_SUBMISSIONS(params.form_id),
-          params: { page: params.page, per_page: params.per_page },
-        });
-        return ok(JSON.stringify(data, null, 2));
-      } catch (error) {
-        logger.error('Failed to list form submissions', error as Error);
-        return err(`Failed to list form submissions: ${formatErrorMessage(error)}`);
-      }
-    }
-  );
-
-  server.registerTool(
-    'admin_summarize_space',
-    {
-      title: 'Admin: Summarize Space',
-      description: 'Get an AI-generated summary of a space\'s content and activity (Admin V2 API)',
-      inputSchema: {
-        space_id: z.number().int().positive().describe('Space ID to summarize'),
-      },
-    },
-    async (params) => {
-      try {
-        const data = await adminV2Request({
-          method: 'POST',
-          endpoint: ADMIN_V2_ENDPOINTS.SPACE_SUMMARIZE(params.space_id),
-        });
-        return ok(JSON.stringify(data, null, 2));
-      } catch (error) {
-        logger.error('Failed to summarize space', error as Error);
-        return err(`Failed to summarize space: ${formatErrorMessage(error)}`);
-      }
-    }
-  );
-
-  server.registerTool(
-    'admin_list_webhooks',
-    {
-      title: 'Admin: List Webhooks',
-      description: 'List all configured webhooks (Admin V2 API)',
+      title: 'Admin: List All Course Sections',
+      description: 'List all course sections across the community (Admin V2 API)',
       inputSchema: {
         page: z.number().int().positive().default(1).describe('Page number'),
         per_page: z.number().int().positive().max(100).default(20).describe('Results per page'),
@@ -148,18 +103,43 @@ export function registerAdminCommunityTools(server: McpServer, readOnlyMode: boo
       try {
         const data = await adminV2Request({
           method: 'GET',
-          endpoint: ADMIN_V2_ENDPOINTS.WEBHOOKS,
+          endpoint: ADMIN_V2_ENDPOINTS.COURSE_SECTIONS,
           params: { page: params.page, per_page: params.per_page },
         });
         return ok(JSON.stringify(data, null, 2));
       } catch (error) {
-        logger.error('Failed to list webhooks', error as Error);
-        return err(`Failed to list webhooks: ${formatErrorMessage(error)}`);
+        logger.error('Failed to list all course sections', error as Error);
+        return err(`Failed to list all course sections: ${formatErrorMessage(error)}`);
       }
     }
   );
 
-  // --- Destructive tools ---
+  server.registerTool(
+    'admin_list_all_course_lessons',
+    {
+      title: 'Admin: List All Course Lessons',
+      description: 'List all course lessons across the community (Admin V2 API)',
+      inputSchema: {
+        page: z.number().int().positive().default(1).describe('Page number'),
+        per_page: z.number().int().positive().max(100).default(20).describe('Results per page'),
+      },
+    },
+    async (params) => {
+      try {
+        const data = await adminV2Request({
+          method: 'GET',
+          endpoint: ADMIN_V2_ENDPOINTS.COURSE_LESSONS,
+          params: { page: params.page, per_page: params.per_page },
+        });
+        return ok(JSON.stringify(data, null, 2));
+      } catch (error) {
+        logger.error('Failed to list all course lessons', error as Error);
+        return err(`Failed to list all course lessons: ${formatErrorMessage(error)}`);
+      }
+    }
+  );
+
+  // --- Destructive tools (1) ---
 
   if (!readOnlyMode) {
     server.registerTool(

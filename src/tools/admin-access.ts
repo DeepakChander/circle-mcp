@@ -16,7 +16,7 @@ function err(text: string) {
 }
 
 export function registerAdminAccessTools(server: McpServer, readOnlyMode: boolean): void {
-  // --- Read tools ---
+  // --- Read tools (3) ---
 
   server.registerTool(
     'admin_list_access_groups',
@@ -47,7 +47,7 @@ export function registerAdminAccessTools(server: McpServer, readOnlyMode: boolea
     'admin_get_access_group',
     {
       title: 'Admin: Get Access Group',
-      description: 'Get a specific access group by ID (Admin V2 API)',
+      description: 'Get a specific access group by filtering the list (Admin V2 API)',
       inputSchema: {
         access_group_id: z.number().int().positive().describe('Access group ID'),
       },
@@ -56,7 +56,8 @@ export function registerAdminAccessTools(server: McpServer, readOnlyMode: boolea
       try {
         const data = await adminV2Request({
           method: 'GET',
-          endpoint: ADMIN_V2_ENDPOINTS.ACCESS_GROUP(params.access_group_id),
+          endpoint: ADMIN_V2_ENDPOINTS.ACCESS_GROUPS,
+          params: { id: params.access_group_id },
         });
         return ok(JSON.stringify(data, null, 2));
       } catch (error) {
@@ -92,7 +93,7 @@ export function registerAdminAccessTools(server: McpServer, readOnlyMode: boolea
     }
   );
 
-  // --- Destructive tools ---
+  // --- Destructive tools (6) ---
 
   if (!readOnlyMode) {
     server.registerTool(
@@ -136,8 +137,8 @@ export function registerAdminAccessTools(server: McpServer, readOnlyMode: boolea
           const { access_group_id, ...updateData } = params;
           const data = await adminV2Request({
             method: 'PATCH',
-            endpoint: ADMIN_V2_ENDPOINTS.ACCESS_GROUP(access_group_id),
-            data: updateData,
+            endpoint: ADMIN_V2_ENDPOINTS.ACCESS_GROUPS,
+            data: { id: access_group_id, ...updateData },
           });
           return ok(`Access group updated successfully:\n${JSON.stringify(data, null, 2)}`);
         } catch (error) {
@@ -160,7 +161,8 @@ export function registerAdminAccessTools(server: McpServer, readOnlyMode: boolea
         try {
           const data = await adminV2Request({
             method: 'POST',
-            endpoint: ADMIN_V2_ENDPOINTS.ACCESS_GROUP_ARCHIVE(params.access_group_id),
+            endpoint: ADMIN_V2_ENDPOINTS.ACCESS_GROUPS,
+            data: { id: params.access_group_id, action: 'archive' },
           });
           return ok(`Access group archived successfully:\n${JSON.stringify(data, null, 2)}`);
         } catch (error) {
@@ -183,7 +185,8 @@ export function registerAdminAccessTools(server: McpServer, readOnlyMode: boolea
         try {
           const data = await adminV2Request({
             method: 'POST',
-            endpoint: ADMIN_V2_ENDPOINTS.ACCESS_GROUP_UNARCHIVE(params.access_group_id),
+            endpoint: ADMIN_V2_ENDPOINTS.ACCESS_GROUPS,
+            data: { id: params.access_group_id, action: 'unarchive' },
           });
           return ok(`Access group unarchived successfully:\n${JSON.stringify(data, null, 2)}`);
         } catch (error) {
@@ -232,7 +235,8 @@ export function registerAdminAccessTools(server: McpServer, readOnlyMode: boolea
         try {
           await adminV2Request({
             method: 'DELETE',
-            endpoint: ADMIN_V2_ENDPOINTS.ACCESS_GROUP_MEMBER(params.access_group_id, params.member_id),
+            endpoint: ADMIN_V2_ENDPOINTS.ACCESS_GROUP_MEMBERS(params.access_group_id),
+            params: { community_member_id: params.member_id },
           });
           return ok('Member removed from access group successfully.');
         } catch (error) {

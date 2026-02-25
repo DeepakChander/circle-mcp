@@ -16,7 +16,7 @@ function err(text: string) {
 }
 
 export function registerAdminContentTools(server: McpServer, readOnlyMode: boolean): void {
-  // --- Read tools ---
+  // --- Read tools (6) ---
 
   server.registerTool(
     'admin_list_posts',
@@ -75,19 +75,21 @@ export function registerAdminContentTools(server: McpServer, readOnlyMode: boole
     'admin_list_comments',
     {
       title: 'Admin: List Comments',
-      description: 'List comments for a specific post (Admin V2 API)',
+      description: 'List comments, optionally filtered by post ID (Admin V2 API)',
       inputSchema: {
-        post_id: z.number().int().positive().describe('Post ID'),
+        post_id: z.number().int().positive().optional().describe('Filter by post ID'),
         page: z.number().int().positive().default(1).describe('Page number'),
         per_page: z.number().int().positive().max(100).default(20).describe('Results per page'),
       },
     },
     async (params) => {
       try {
+        const queryParams: Record<string, any> = { page: params.page, per_page: params.per_page };
+        if (params.post_id) queryParams.post_id = params.post_id;
         const data = await adminV2Request({
           method: 'GET',
-          endpoint: ADMIN_V2_ENDPOINTS.POST_COMMENTS(params.post_id),
-          params: { page: params.page, per_page: params.per_page },
+          endpoint: ADMIN_V2_ENDPOINTS.COMMENTS,
+          params: queryParams,
         });
         return ok(JSON.stringify(data, null, 2));
       } catch (error) {
@@ -121,47 +123,24 @@ export function registerAdminContentTools(server: McpServer, readOnlyMode: boole
   );
 
   server.registerTool(
-    'admin_list_flagged_content',
-    {
-      title: 'Admin: List Flagged Content',
-      description: 'List content flagged by members or moderators (Admin V2 API)',
-      inputSchema: {
-        page: z.number().int().positive().default(1).describe('Page number'),
-        per_page: z.number().int().positive().max(100).default(20).describe('Results per page'),
-      },
-    },
-    async (params) => {
-      try {
-        const data = await adminV2Request({
-          method: 'GET',
-          endpoint: ADMIN_V2_ENDPOINTS.FLAGGED_CONTENT,
-          params: { page: params.page, per_page: params.per_page },
-        });
-        return ok(JSON.stringify(data, null, 2));
-      } catch (error) {
-        logger.error('Failed to list flagged content', error as Error);
-        return err(`Failed to list flagged content: ${formatErrorMessage(error)}`);
-      }
-    }
-  );
-
-  server.registerTool(
     'admin_list_topics',
     {
       title: 'Admin: List Topics',
-      description: 'List topics in a space (Admin V2 API)',
+      description: 'List topics, optionally filtered by space ID (Admin V2 API)',
       inputSchema: {
-        space_id: z.number().int().positive().describe('Space ID'),
+        space_id: z.number().int().positive().optional().describe('Filter by space ID'),
         page: z.number().int().positive().default(1).describe('Page number'),
         per_page: z.number().int().positive().max(100).default(20).describe('Results per page'),
       },
     },
     async (params) => {
       try {
+        const queryParams: Record<string, any> = { page: params.page, per_page: params.per_page };
+        if (params.space_id) queryParams.space_id = params.space_id;
         const data = await adminV2Request({
           method: 'GET',
-          endpoint: ADMIN_V2_ENDPOINTS.SPACE_TOPICS(params.space_id),
-          params: { page: params.page, per_page: params.per_page },
+          endpoint: ADMIN_V2_ENDPOINTS.TOPICS,
+          params: queryParams,
         });
         return ok(JSON.stringify(data, null, 2));
       } catch (error) {
@@ -171,7 +150,32 @@ export function registerAdminContentTools(server: McpServer, readOnlyMode: boole
     }
   );
 
-  // --- Destructive tools ---
+  server.registerTool(
+    'admin_list_all_comments',
+    {
+      title: 'Admin: List All Comments',
+      description: 'List all comments across the community (Admin V2 API)',
+      inputSchema: {
+        page: z.number().int().positive().default(1).describe('Page number'),
+        per_page: z.number().int().positive().max(100).default(20).describe('Results per page'),
+      },
+    },
+    async (params) => {
+      try {
+        const data = await adminV2Request({
+          method: 'GET',
+          endpoint: ADMIN_V2_ENDPOINTS.COMMENTS,
+          params: { page: params.page, per_page: params.per_page },
+        });
+        return ok(JSON.stringify(data, null, 2));
+      } catch (error) {
+        logger.error('Failed to list all comments', error as Error);
+        return err(`Failed to list all comments: ${formatErrorMessage(error)}`);
+      }
+    }
+  );
+
+  // --- Destructive tools (10) ---
 
   if (!readOnlyMode) {
     server.registerTool(
@@ -271,11 +275,10 @@ export function registerAdminContentTools(server: McpServer, readOnlyMode: boole
       },
       async (params) => {
         try {
-          const { post_id, ...commentData } = params;
           const data = await adminV2Request({
             method: 'POST',
-            endpoint: ADMIN_V2_ENDPOINTS.POST_COMMENTS(post_id),
-            data: commentData,
+            endpoint: ADMIN_V2_ENDPOINTS.COMMENTS,
+            data: params,
           });
           return ok(`Comment created successfully:\n${JSON.stringify(data, null, 2)}`);
         } catch (error) {
@@ -338,7 +341,7 @@ export function registerAdminContentTools(server: McpServer, readOnlyMode: boole
       'admin_create_topic',
       {
         title: 'Admin: Create Topic',
-        description: 'Create a new topic in a space (Admin V2 API)',
+        description: 'Create a new topic (Admin V2 API)',
         inputSchema: {
           space_id: z.number().int().positive().describe('Space ID'),
           name: z.string().min(1).max(255).describe('Topic name'),
@@ -348,8 +351,8 @@ export function registerAdminContentTools(server: McpServer, readOnlyMode: boole
         try {
           const data = await adminV2Request({
             method: 'POST',
-            endpoint: ADMIN_V2_ENDPOINTS.SPACE_TOPICS(params.space_id),
-            data: { name: params.name },
+            endpoint: ADMIN_V2_ENDPOINTS.TOPICS,
+            data: { space_id: params.space_id, name: params.name },
           });
           return ok(`Topic created successfully:\n${JSON.stringify(data, null, 2)}`);
         } catch (error) {
@@ -403,31 +406,6 @@ export function registerAdminContentTools(server: McpServer, readOnlyMode: boole
         } catch (error) {
           logger.error('Failed to delete topic', error as Error);
           return err(`Failed to delete topic: ${formatErrorMessage(error)}`);
-        }
-      }
-    );
-
-    server.registerTool(
-      'admin_moderate_content',
-      {
-        title: 'Admin: Moderate Flagged Content',
-        description: 'Moderate flagged content (approve, remove, etc.) (Admin V2 API)',
-        inputSchema: {
-          flagged_content_id: z.number().int().positive().describe('Flagged content ID'),
-          action: z.enum(['approve', 'remove', 'ignore']).describe('Moderation action'),
-        },
-      },
-      async (params) => {
-        try {
-          const data = await adminV2Request({
-            method: 'PATCH',
-            endpoint: ADMIN_V2_ENDPOINTS.FLAGGED_CONTENT_ITEM(params.flagged_content_id),
-            data: { action: params.action },
-          });
-          return ok(`Content moderated successfully:\n${JSON.stringify(data, null, 2)}`);
-        } catch (error) {
-          logger.error('Failed to moderate content', error as Error);
-          return err(`Failed to moderate content: ${formatErrorMessage(error)}`);
         }
       }
     );

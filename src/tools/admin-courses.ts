@@ -16,13 +16,13 @@ function err(text: string) {
 }
 
 export function registerAdminCourseTools(server: McpServer, readOnlyMode: boolean): void {
-  // --- Read tools ---
+  // --- Read tools (4) ---
 
   server.registerTool(
     'admin_list_courses',
     {
       title: 'Admin: List Courses',
-      description: 'List all courses in the community (Admin V2 API)',
+      description: 'List all course spaces in the community (Admin V2 API)',
       inputSchema: {
         page: z.number().int().positive().default(1).describe('Page number'),
         per_page: z.number().int().positive().max(100).default(20).describe('Results per page'),
@@ -32,8 +32,8 @@ export function registerAdminCourseTools(server: McpServer, readOnlyMode: boolea
       try {
         const data = await adminV2Request({
           method: 'GET',
-          endpoint: ADMIN_V2_ENDPOINTS.COURSES,
-          params: { page: params.page, per_page: params.per_page },
+          endpoint: ADMIN_V2_ENDPOINTS.SPACES,
+          params: { space_type: 'course', page: params.page, per_page: params.per_page },
         });
         return ok(JSON.stringify(data, null, 2));
       } catch (error) {
@@ -47,16 +47,16 @@ export function registerAdminCourseTools(server: McpServer, readOnlyMode: boolea
     'admin_get_course',
     {
       title: 'Admin: Get Course',
-      description: 'Get a specific course by ID (Admin V2 API)',
+      description: 'Get a specific course (space) by ID (Admin V2 API)',
       inputSchema: {
-        course_id: z.number().int().positive().describe('Course ID'),
+        course_id: z.number().int().positive().describe('Course space ID'),
       },
     },
     async (params) => {
       try {
         const data = await adminV2Request({
           method: 'GET',
-          endpoint: ADMIN_V2_ENDPOINTS.COURSE(params.course_id),
+          endpoint: ADMIN_V2_ENDPOINTS.SPACE(params.course_id),
         });
         return ok(JSON.stringify(data, null, 2));
       } catch (error) {
@@ -70,9 +70,9 @@ export function registerAdminCourseTools(server: McpServer, readOnlyMode: boolea
     'admin_list_course_sections',
     {
       title: 'Admin: List Course Sections',
-      description: 'List sections of a course (Admin V2 API)',
+      description: 'List sections of a course, filtered by space ID (Admin V2 API)',
       inputSchema: {
-        course_id: z.number().int().positive().describe('Course ID'),
+        space_id: z.number().int().positive().describe('Course space ID'),
         page: z.number().int().positive().default(1).describe('Page number'),
         per_page: z.number().int().positive().max(100).default(20).describe('Results per page'),
       },
@@ -81,8 +81,8 @@ export function registerAdminCourseTools(server: McpServer, readOnlyMode: boolea
       try {
         const data = await adminV2Request({
           method: 'GET',
-          endpoint: ADMIN_V2_ENDPOINTS.COURSE_SECTIONS(params.course_id),
-          params: { page: params.page, per_page: params.per_page },
+          endpoint: ADMIN_V2_ENDPOINTS.COURSE_SECTIONS,
+          params: { space_id: params.space_id, page: params.page, per_page: params.per_page },
         });
         return ok(JSON.stringify(data, null, 2));
       } catch (error) {
@@ -98,7 +98,7 @@ export function registerAdminCourseTools(server: McpServer, readOnlyMode: boolea
       title: 'Admin: List Course Lessons',
       description: 'List lessons in a course section (Admin V2 API)',
       inputSchema: {
-        section_id: z.number().int().positive().describe('Course section ID'),
+        course_section_id: z.number().int().positive().describe('Course section ID'),
         page: z.number().int().positive().default(1).describe('Page number'),
         per_page: z.number().int().positive().max(100).default(20).describe('Results per page'),
       },
@@ -107,8 +107,8 @@ export function registerAdminCourseTools(server: McpServer, readOnlyMode: boolea
       try {
         const data = await adminV2Request({
           method: 'GET',
-          endpoint: ADMIN_V2_ENDPOINTS.SECTION_LESSONS(params.section_id),
-          params: { page: params.page, per_page: params.per_page },
+          endpoint: ADMIN_V2_ENDPOINTS.COURSE_LESSONS,
+          params: { course_section_id: params.course_section_id, page: params.page, per_page: params.per_page },
         });
         return ok(JSON.stringify(data, null, 2));
       } catch (error) {
@@ -118,7 +118,7 @@ export function registerAdminCourseTools(server: McpServer, readOnlyMode: boolea
     }
   );
 
-  // --- Destructive tools ---
+  // --- Destructive tools (7) ---
 
   if (!readOnlyMode) {
     server.registerTool(
@@ -127,18 +127,17 @@ export function registerAdminCourseTools(server: McpServer, readOnlyMode: boolea
         title: 'Admin: Create Course Section',
         description: 'Create a new section in a course (Admin V2 API)',
         inputSchema: {
-          course_id: z.number().int().positive().describe('Course ID'),
+          space_id: z.number().int().positive().describe('Course space ID'),
           name: z.string().min(1).max(255).describe('Section name'),
           position: z.number().int().nonnegative().optional().describe('Position/order of the section'),
         },
       },
       async (params) => {
         try {
-          const { course_id, ...sectionData } = params;
           const data = await adminV2Request({
             method: 'POST',
-            endpoint: ADMIN_V2_ENDPOINTS.COURSE_SECTIONS(course_id),
-            data: sectionData,
+            endpoint: ADMIN_V2_ENDPOINTS.COURSE_SECTIONS,
+            data: params,
           });
           return ok(`Course section created successfully:\n${JSON.stringify(data, null, 2)}`);
         } catch (error) {
@@ -204,7 +203,7 @@ export function registerAdminCourseTools(server: McpServer, readOnlyMode: boolea
         title: 'Admin: Create Course Lesson',
         description: 'Create a new lesson in a course section (Admin V2 API)',
         inputSchema: {
-          section_id: z.number().int().positive().describe('Course section ID'),
+          course_section_id: z.number().int().positive().describe('Course section ID'),
           name: z.string().min(1).max(255).describe('Lesson name'),
           position: z.number().int().nonnegative().optional().describe('Position/order'),
           lesson_type: z.string().optional().describe('Lesson type'),
@@ -213,11 +212,10 @@ export function registerAdminCourseTools(server: McpServer, readOnlyMode: boolea
       },
       async (params) => {
         try {
-          const { section_id, ...lessonData } = params;
           const data = await adminV2Request({
             method: 'POST',
-            endpoint: ADMIN_V2_ENDPOINTS.SECTION_LESSONS(section_id),
-            data: lessonData,
+            endpoint: ADMIN_V2_ENDPOINTS.COURSE_LESSONS,
+            data: params,
           });
           return ok(`Course lesson created successfully:\n${JSON.stringify(data, null, 2)}`);
         } catch (error) {

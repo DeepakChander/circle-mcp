@@ -16,7 +16,7 @@ function err(text: string) {
 }
 
 export function registerAdminEngagementTools(server: McpServer, readOnlyMode: boolean): void {
-  // --- Read tools ---
+  // --- Read tools (4) ---
 
   server.registerTool(
     'admin_get_leaderboard',
@@ -69,11 +69,12 @@ export function registerAdminEngagementTools(server: McpServer, readOnlyMode: bo
   );
 
   server.registerTool(
-    'admin_list_segments',
+    'admin_list_member_tags_for_member',
     {
-      title: 'Admin: List Segments',
-      description: 'List all member segments (Admin V2 API)',
+      title: 'Admin: List Tags for Member',
+      description: 'List tags assigned to a specific member (Admin V2 API)',
       inputSchema: {
+        community_member_id: z.number().int().positive().describe('Member ID'),
         page: z.number().int().positive().default(1).describe('Page number'),
         per_page: z.number().int().positive().max(100).default(20).describe('Results per page'),
       },
@@ -82,79 +83,44 @@ export function registerAdminEngagementTools(server: McpServer, readOnlyMode: bo
       try {
         const data = await adminV2Request({
           method: 'GET',
-          endpoint: ADMIN_V2_ENDPOINTS.SEGMENTS,
-          params: { page: params.page, per_page: params.per_page },
+          endpoint: ADMIN_V2_ENDPOINTS.MEMBER_TAG_LIST,
+          params: { community_member_id: params.community_member_id, page: params.page, per_page: params.per_page },
         });
         return ok(JSON.stringify(data, null, 2));
       } catch (error) {
-        logger.error('Failed to list segments', error as Error);
-        return err(`Failed to list segments: ${formatErrorMessage(error)}`);
+        logger.error('Failed to list member tags for member', error as Error);
+        return err(`Failed to list member tags: ${formatErrorMessage(error)}`);
       }
     }
   );
 
   server.registerTool(
-    'admin_list_invitations',
+    'admin_search_members_by_email',
     {
-      title: 'Admin: List Invitations',
-      description: 'List all community invitations (Admin V2 API)',
+      title: 'Admin: Search Members by Email',
+      description: 'Find members by email address (Admin V2 API)',
       inputSchema: {
-        status: z.string().optional().describe('Filter by status (pending, accepted, expired)'),
+        email: z.string().min(1).describe('Email address to search for'),
         page: z.number().int().positive().default(1).describe('Page number'),
         per_page: z.number().int().positive().max(100).default(20).describe('Results per page'),
       },
     },
     async (params) => {
       try {
-        const queryParams: Record<string, any> = { page: params.page, per_page: params.per_page };
-        if (params.status) queryParams.status = params.status;
         const data = await adminV2Request({
           method: 'GET',
-          endpoint: ADMIN_V2_ENDPOINTS.INVITATIONS,
-          params: queryParams,
+          endpoint: ADMIN_V2_ENDPOINTS.MEMBERS,
+          params: { email: params.email, page: params.page, per_page: params.per_page },
         });
         return ok(JSON.stringify(data, null, 2));
       } catch (error) {
-        logger.error('Failed to list invitations', error as Error);
-        return err(`Failed to list invitations: ${formatErrorMessage(error)}`);
+        logger.error('Failed to search members by email', error as Error);
+        return err(`Failed to search members: ${formatErrorMessage(error)}`);
       }
     }
   );
 
-  server.registerTool(
-    'admin_search',
-    {
-      title: 'Admin: Search Community',
-      description: 'Search across the community (members, posts, spaces, etc.) (Admin V2 API)',
-      inputSchema: {
-        query: z.string().min(1).describe('Search query'),
-        type: z.string().optional().describe('Filter by type (members, posts, spaces)'),
-        page: z.number().int().positive().default(1).describe('Page number'),
-        per_page: z.number().int().positive().max(100).default(20).describe('Results per page'),
-      },
-    },
-    async (params) => {
-      try {
-        const queryParams: Record<string, any> = {
-          query: params.query,
-          page: params.page,
-          per_page: params.per_page,
-        };
-        if (params.type) queryParams.type = params.type;
-        const data = await adminV2Request({
-          method: 'GET',
-          endpoint: ADMIN_V2_ENDPOINTS.SEARCH,
-          params: queryParams,
-        });
-        return ok(JSON.stringify(data, null, 2));
-      } catch (error) {
-        logger.error('Failed to search', error as Error);
-        return err(`Failed to search: ${formatErrorMessage(error)}`);
-      }
-    }
-  );
-
-  // --- Destructive tools ---
+  // --- Destructive tools (5) ---
 
   if (!readOnlyMode) {
     server.registerTool(
@@ -243,161 +209,13 @@ export function registerAdminEngagementTools(server: McpServer, readOnlyMode: bo
         try {
           const data = await adminV2Request({
             method: 'POST',
-            endpoint: ADMIN_V2_ENDPOINTS.MEMBER_TAGS_FOR_MEMBER(params.member_id),
-            data: { member_tag_id: params.tag_id },
+            endpoint: ADMIN_V2_ENDPOINTS.MEMBER_TAG_LIST,
+            data: { community_member_id: params.member_id, member_tag_id: params.tag_id },
           });
           return ok(`Tag assigned to member:\n${JSON.stringify(data, null, 2)}`);
         } catch (error) {
           logger.error('Failed to tag member', error as Error);
           return err(`Failed to tag member: ${formatErrorMessage(error)}`);
-        }
-      }
-    );
-
-    server.registerTool(
-      'admin_untag_member',
-      {
-        title: 'Admin: Untag Member',
-        description: 'Remove a tag from a community member (Admin V2 API)',
-        inputSchema: {
-          member_id: z.number().int().positive().describe('Member ID'),
-          tag_id: z.number().int().positive().describe('Tag ID to remove'),
-        },
-      },
-      async (params) => {
-        try {
-          await adminV2Request({
-            method: 'DELETE',
-            endpoint: ADMIN_V2_ENDPOINTS.MEMBER_UNTAG(params.member_id, params.tag_id),
-          });
-          return ok('Tag removed from member successfully.');
-        } catch (error) {
-          logger.error('Failed to untag member', error as Error);
-          return err(`Failed to untag member: ${formatErrorMessage(error)}`);
-        }
-      }
-    );
-
-    server.registerTool(
-      'admin_create_segment',
-      {
-        title: 'Admin: Create Segment',
-        description: 'Create a new member segment (Admin V2 API)',
-        inputSchema: {
-          name: z.string().min(1).max(255).describe('Segment name'),
-          filters: z.record(z.any()).optional().describe('Segment filter criteria'),
-        },
-      },
-      async (params) => {
-        try {
-          const data = await adminV2Request({
-            method: 'POST',
-            endpoint: ADMIN_V2_ENDPOINTS.SEGMENTS,
-            data: params,
-          });
-          return ok(`Segment created successfully:\n${JSON.stringify(data, null, 2)}`);
-        } catch (error) {
-          logger.error('Failed to create segment', error as Error);
-          return err(`Failed to create segment: ${formatErrorMessage(error)}`);
-        }
-      }
-    );
-
-    server.registerTool(
-      'admin_update_segment',
-      {
-        title: 'Admin: Update Segment',
-        description: 'Update a member segment (Admin V2 API)',
-        inputSchema: {
-          segment_id: z.number().int().positive().describe('Segment ID'),
-          name: z.string().min(1).max(255).optional().describe('Segment name'),
-          filters: z.record(z.any()).optional().describe('Segment filter criteria'),
-        },
-      },
-      async (params) => {
-        try {
-          const { segment_id, ...updateData } = params;
-          const data = await adminV2Request({
-            method: 'PATCH',
-            endpoint: ADMIN_V2_ENDPOINTS.SEGMENT(segment_id),
-            data: updateData,
-          });
-          return ok(`Segment updated successfully:\n${JSON.stringify(data, null, 2)}`);
-        } catch (error) {
-          logger.error('Failed to update segment', error as Error);
-          return err(`Failed to update segment: ${formatErrorMessage(error)}`);
-        }
-      }
-    );
-
-    server.registerTool(
-      'admin_delete_segment',
-      {
-        title: 'Admin: Delete Segment',
-        description: 'Delete a member segment (Admin V2 API)',
-        inputSchema: {
-          segment_id: z.number().int().positive().describe('Segment ID to delete'),
-        },
-      },
-      async (params) => {
-        try {
-          await adminV2Request({
-            method: 'DELETE',
-            endpoint: ADMIN_V2_ENDPOINTS.SEGMENT(params.segment_id),
-          });
-          return ok('Segment deleted successfully.');
-        } catch (error) {
-          logger.error('Failed to delete segment', error as Error);
-          return err(`Failed to delete segment: ${formatErrorMessage(error)}`);
-        }
-      }
-    );
-
-    server.registerTool(
-      'admin_create_invitation',
-      {
-        title: 'Admin: Create Invitation',
-        description: 'Send a community invitation to an email address (Admin V2 API)',
-        inputSchema: {
-          email: z.string().email().describe('Email address to invite'),
-          name: z.string().optional().describe('Name of the person being invited'),
-          space_ids: z.array(z.number().int().positive()).optional().describe('Space IDs to add the invitee to'),
-        },
-      },
-      async (params) => {
-        try {
-          const data = await adminV2Request({
-            method: 'POST',
-            endpoint: ADMIN_V2_ENDPOINTS.INVITATIONS,
-            data: params,
-          });
-          return ok(`Invitation sent successfully:\n${JSON.stringify(data, null, 2)}`);
-        } catch (error) {
-          logger.error('Failed to create invitation', error as Error);
-          return err(`Failed to create invitation: ${formatErrorMessage(error)}`);
-        }
-      }
-    );
-
-    server.registerTool(
-      'admin_revoke_invitation',
-      {
-        title: 'Admin: Revoke Invitation',
-        description: 'Revoke a pending community invitation (Admin V2 API)',
-        inputSchema: {
-          invitation_id: z.number().int().positive().describe('Invitation ID to revoke'),
-        },
-      },
-      async (params) => {
-        try {
-          await adminV2Request({
-            method: 'DELETE',
-            endpoint: ADMIN_V2_ENDPOINTS.INVITATION(params.invitation_id),
-          });
-          return ok('Invitation revoked successfully.');
-        } catch (error) {
-          logger.error('Failed to revoke invitation', error as Error);
-          return err(`Failed to revoke invitation: ${formatErrorMessage(error)}`);
         }
       }
     );

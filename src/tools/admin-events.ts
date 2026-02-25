@@ -86,8 +86,8 @@ export function registerAdminEventTools(server: McpServer, readOnlyMode: boolean
       try {
         const data = await adminV2Request({
           method: 'GET',
-          endpoint: ADMIN_V2_ENDPOINTS.EVENT_ATTENDEES(params.event_id),
-          params: { page: params.page, per_page: params.per_page },
+          endpoint: ADMIN_V2_ENDPOINTS.EVENT_ATTENDEES,
+          params: { event_id: params.event_id, page: params.page, per_page: params.per_page },
         });
         return ok(JSON.stringify(data, null, 2));
       } catch (error) {
@@ -205,8 +205,8 @@ export function registerAdminEventTools(server: McpServer, readOnlyMode: boolean
         try {
           const data = await adminV2Request({
             method: 'POST',
-            endpoint: ADMIN_V2_ENDPOINTS.EVENT_ATTENDEES(params.event_id),
-            data: { community_member_id: params.community_member_id },
+            endpoint: ADMIN_V2_ENDPOINTS.EVENT_ATTENDEES,
+            data: { event_id: params.event_id, community_member_id: params.community_member_id },
           });
           return ok(`Attendee added successfully:\n${JSON.stringify(data, null, 2)}`);
         } catch (error) {
@@ -230,7 +230,8 @@ export function registerAdminEventTools(server: McpServer, readOnlyMode: boolean
         try {
           await adminV2Request({
             method: 'DELETE',
-            endpoint: ADMIN_V2_ENDPOINTS.EVENT_ATTENDEE(params.event_id, params.attendee_id),
+            endpoint: ADMIN_V2_ENDPOINTS.EVENT_ATTENDEES,
+            params: { event_id: params.event_id, community_member_id: params.attendee_id },
           });
           return ok('Attendee removed successfully.');
         } catch (error) {

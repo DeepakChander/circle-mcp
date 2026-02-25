@@ -21,9 +21,19 @@
   "keywords": [
     "mcp",
     "circle",
+    "circle-mcp",
+    "circle-so",
+    "circle-lms",
+    "circle-community",
+    "model-context-protocol",
+    "mcp-server",
+    "admin-api",
     "llm",
     "ai",
-    "oauth"
+    "oauth",
+    "cursor",
+    "claude",
+    "vscode"
   ],
   "author": "Circle MCP Team",
   "license": "MIT",

@@ -23,6 +23,16 @@ export function extractArrayFromResponse<T>(response: any): T[] {
     return response.data.records;
   }
 
+  // Handle Circle API response with endpoint-specific keys (e.g., { spaces: [...] }, { posts: [...] })
+  if (response && typeof response === 'object') {
+    const keys = Object.keys(response);
+    for (const key of keys) {
+      if (Array.isArray(response[key])) {
+        return response[key];
+      }
+    }
+  }
+
   // Handle empty or null
   if (!response || response === null || (typeof response === 'object' && Object.keys(response).length === 0)) {
     return [];

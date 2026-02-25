@@ -14,6 +14,7 @@ function createGetSpacesHandler(apiClient: CircleAPIClient) {
     try {
       const email = params.authenticatedEmail;
       const response = await apiClient.get<any>(endpoints.getSpaces(), email);
+
       const spacesArray = extractArrayFromResponse<CircleSpace>(response);
 
       if (spacesArray.length === 0) {

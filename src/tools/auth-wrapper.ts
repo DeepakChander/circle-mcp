@@ -1,6 +1,7 @@
 import { Logger } from '../utils/logger.js';
 import { IntegratedAuthManager } from '../auth/integrated-auth-manager.js';
 import { AuthenticationError } from '../utils/errors.js';
+import { isAdminV2Configured } from '../api/admin-v2-client.js';
 
 const logger = new Logger('AuthWrapper');
 
@@ -103,6 +104,27 @@ Try again with: "Show me my profile using your-email@example.com"`
 export function extractEmailFromParams<T extends AuthenticatedToolParams>(params: T): { email: string | undefined; cleanParams: Omit<T, 'email'> } {
   const { email, ...cleanParams } = params;
   return { email, cleanParams };
+}
+
+/**
+ * Wrapper for Admin V2 API tools.
+ * Checks that the admin token is configured before executing.
+ */
+export function withAdminV2Auth(
+  toolFunction: (params: any) => Promise<any>
+) {
+  return async (params: any): Promise<any> => {
+    if (!isAdminV2Configured()) {
+      return {
+        content: [{
+          type: 'text',
+          text: 'Admin API v2 token not configured. Add CIRCLE_ADMIN_V2_TOKEN to your .env file.',
+        }],
+        isError: true,
+      };
+    }
+    return toolFunction(params);
+  };
 }
 
 /**

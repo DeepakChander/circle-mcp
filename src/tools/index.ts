@@ -10,6 +10,15 @@ import { registerNotificationTools, registerNotificationToolsForSession } from '
 import { registerMessageTools, registerMessageToolsForSession } from './messages.js';
 import { registerFeedTools, registerFeedToolsForSession } from './feed.js';
 import { registerCommentTools, registerCommentToolsForSession } from './comments.js';
+import { registerAdminMemberTools, registerAdminMemberToolsForSession } from './admin-members.js';
+import { registerAdminSpaceTools, registerAdminSpaceToolsForSession } from './admin-spaces.js';
+import { registerAdminContentTools, registerAdminContentToolsForSession } from './admin-content.js';
+import { registerAdminEventTools, registerAdminEventToolsForSession } from './admin-events.js';
+import { registerAdminCourseTools, registerAdminCourseToolsForSession } from './admin-courses.js';
+import { registerAdminAccessTools, registerAdminAccessToolsForSession } from './admin-access.js';
+import { registerAdminEngagementTools, registerAdminEngagementToolsForSession } from './admin-engagement.js';
+import { registerAdminCommunityTools, registerAdminCommunityToolsForSession } from './admin-community.js';
+import { isAdminV2Configured } from '../api/admin-v2-client.js';
 import { Logger } from '../utils/logger.js';
 
 const logger = new Logger('ToolRegistry');
@@ -32,6 +41,19 @@ export function registerAllTools(
   registerFeedTools(server, apiClient, authManager);
   registerCommentTools(server, apiClient, authManager, readOnlyMode);
 
+  // Admin V2 API tools (only if token is configured)
+  if (isAdminV2Configured()) {
+    logger.info('Admin V2 token detected, registering admin tools');
+    registerAdminMemberTools(server, readOnlyMode);
+    registerAdminSpaceTools(server, readOnlyMode);
+    registerAdminContentTools(server, readOnlyMode);
+    registerAdminEventTools(server, readOnlyMode);
+    registerAdminCourseTools(server, readOnlyMode);
+    registerAdminAccessTools(server, readOnlyMode);
+    registerAdminEngagementTools(server, readOnlyMode);
+    registerAdminCommunityTools(server, readOnlyMode);
+  }
+
   logger.info('All tools registered successfully');
 }
 
@@ -52,6 +74,19 @@ export function registerAllToolsForSession(
   registerMessageToolsForSession(server, apiClient, email);
   registerFeedToolsForSession(server, apiClient, email);
   registerCommentToolsForSession(server, apiClient, email, readOnlyMode);
+
+  // Admin V2 API tools (only if token is configured)
+  if (isAdminV2Configured()) {
+    logger.info('Admin V2 token detected, registering admin tools for session');
+    registerAdminMemberToolsForSession(server, readOnlyMode);
+    registerAdminSpaceToolsForSession(server, readOnlyMode);
+    registerAdminContentToolsForSession(server, readOnlyMode);
+    registerAdminEventToolsForSession(server, readOnlyMode);
+    registerAdminCourseToolsForSession(server, readOnlyMode);
+    registerAdminAccessToolsForSession(server, readOnlyMode);
+    registerAdminEngagementToolsForSession(server, readOnlyMode);
+    registerAdminCommunityToolsForSession(server, readOnlyMode);
+  }
 
   logger.info('All tools registered successfully for session');
 }

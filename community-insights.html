@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>10X Community Analytics Report</title>
+<style>
+  :root {
+    --bg-primary: #0a0e1a;
+    --bg-secondary: #111827;
+    --bg-card: #1a1f35;
+    --bg-card-hover: #222842;
+    --border-color: #2a3050;
+    --text-primary: #e8eaf0;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+    --accent-blue: #2563eb;
+    --accent-purple: #8583FF;
+    --accent-green: #10b981;
+    --accent-red: #ef4444;
+    --accent-orange: #f59e0b;
+    --accent-cyan: #06b6d4;
+    --accent-pink: #ec4899;
+    --gradient-blue: linear-gradient(135deg, #2563eb, #8583FF);
+    --gradient-green: linear-gradient(135deg, #059669, #10b981);
+    --gradient-red: linear-gradient(135deg, #dc2626, #ef4444);
+    --gradient-orange: linear-gradient(135deg, #d97706, #f59e0b);
+    --gradient-purple: linear-gradient(135deg, #7c3aed, #a78bfa);
+    --gradient-cyan: linear-gradient(135deg, #0891b2, #06b6d4);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+    --shadow-lg: 0 8px 30px rgba(0,0,0,0.5);
+    --shadow-glow-blue: 0 0 20px rgba(37,99,235,0.15);
+    --shadow-glow-purple: 0 0 20px rgba(133,131,255,0.15);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-lg: 16px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ---- Animations ---- */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes barGrow {
+    from { width: 0; }
+  }
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 8px rgba(133,131,255,0.2); }
+    50% { box-shadow: 0 0 20px rgba(133,131,255,0.4); }
+  }
+  @keyframes countUp {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .animate-in {
+    animation: fadeInUp 0.6s ease-out both;
+  }
+  .animate-in-1 { animation-delay: 0.05s; }
+  .animate-in-2 { animation-delay: 0.1s; }
+  .animate-in-3 { animation-delay: 0.15s; }
+  .animate-in-4 { animation-delay: 0.2s; }
+  .animate-in-5 { animation-delay: 0.25s; }
+  .animate-in-6 { animation-delay: 0.3s; }
+  .animate-in-7 { animation-delay: 0.35s; }
+  .animate-in-8 { animation-delay: 0.4s; }
+
+  /* ---- Layout ---- */
+  .container {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ---- Header ---- */
+  .report-header {
+    background: linear-gradient(135deg, #0f1629 0%, #1a1040 50%, #0f1629 100%);
+    border-bottom: 1px solid var(--border-color);
+    padding: 48px 0 40px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeIn 0.8s ease-out;
+  }
+  .report-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -10%;
+    width: 60%;
+    height: 200%;
+    background: radial-gradient(ellipse, rgba(37,99,235,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .report-header::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 50%;
+    height: 200%;
+    background: radial-gradient(ellipse, rgba(133,131,255,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header-content {
+    position: relative;
+    z-index: 1;
+  }
+  .header-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(133,131,255,0.12);
+    border: 1px solid rgba(133,131,255,0.25);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--accent-purple);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 20px;
+  }
+  .header-badge .dot {
+    width: 6px; height: 6px;
+    background: var(--accent-purple);
+    border-radius: 50%;
+  }
+  .report-header h1 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #fff 0%, #c7d2fe 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+  .header-subtitle {
+    font-size: 1.15rem;
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+  }
+  .header-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .header-meta span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .header-meta .label {
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  /* ---- Section ---- */
+  .section {
+    padding: 48px 0;
+  }
+  .section-header {
+    margin-bottom: 28px;
+  }
+  .section-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent-purple);
+    margin-bottom: 6px;
+  }
+  .section-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+  .section-divider {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, var(--border-color), transparent);
+    margin: 0;
+  }
+
+  /* ---- Executive Summary ---- */
+  .exec-summary {
+    background: linear-gradient(135deg, rgba(37,99,235,0.06), rgba(133,131,255,0.06));
+    border: 1px solid rgba(133,131,255,0.15);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    font-size: 1.05rem;
+    line-height: 1.8;
+    color: var(--text-secondary);
+    position: relative;
+    overflow: hidden;
+  }
+  .exec-summary::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--gradient-blue);
+    border-radius: 4px 0 0 4px;
+  }
+  .exec-summary strong {
+    color: var(--text-primary);
+  }
+
+  /* ---- Cards Grid ---- */
+  .cards-grid {
+    display: grid;
+    gap: 16px;
+  }
+  .cards-grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .cards-grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .cards-grid-4 { grid-template-columns: repeat(4, 1fr); }
+  .cards-grid-8 { grid-template-columns: repeat(4, 1fr); }
+
+  @media (max-width: 1100px) {
+    .cards-grid-4, .cards-grid-8 { grid-template-columns: repeat(2, 1fr); }
+    .cards-grid-3 { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .cards-grid-2, .cards-grid-3, .cards-grid-4, .cards-grid-8 {
+      grid-template-columns: 1fr;
+    }
+    .report-header h1 { font-size: 1.8rem; }
+  }
+
+  /* ---- Metric Card ---- */
+  .metric-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 24px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    border-color: rgba(133,131,255,0.3);
+  }
+  .metric-card .metric-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    margin-bottom: 16px;
+  }
+  .metric-card .metric-value {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    animation: countUp 0.5s ease-out both;
+  }
+  .metric-card .metric-label {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 4px;
+  }
+  .metric-card .metric-sub {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color);
+  }
+  .metric-card .metric-sub .highlight-green { color: var(--accent-green); font-weight: 600; }
+  .metric-card .metric-sub .highlight-red { color: var(--accent-red); font-weight: 600; }
+  .metric-card .metric-sub .highlight-orange { color: var(--accent-orange); font-weight: 600; }
+
+  .icon-blue { background: rgba(37,99,235,0.15); color: var(--accent-blue); }
+  .icon-purple { background: rgba(133,131,255,0.15); color: var(--accent-purple); }
+  .icon-green { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+  .icon-red { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+  .icon-orange { background: rgba(245,158,11,0.15); color: var(--accent-orange); }
+  .icon-cyan { background: rgba(6,182,212,0.15); color: var(--accent-cyan); }
+  .icon-pink { background: rgba(236,72,153,0.15); color: var(--accent-pink); }
+
+  /* ---- Insight Cards (Strengths / Concerns / Recommendations) ---- */
+  .insight-card {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 24px;
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .insight-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+  .insight-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 3px;
+  }
+  .insight-card.green::before { background: var(--gradient-green); }
+  .insight-card.green { border-color: rgba(16,185,129,0.2); }
+  .insight-card.green:hover { border-color: rgba(16,185,129,0.4); }
+
+  .insight-card.red::before { background: var(--gradient-red); }
+  .insight-card.red { border-color: rgba(239,68,68,0.2); }
+  .insight-card.red:hover { border-color: rgba(239,68,68,0.4); }
+
+  .insight-card.orange::before { background: var(--gradient-orange); }
+  .insight-card.orange { border-color: rgba(245,158,11,0.2); }
+  .insight-card.orange:hover { border-color: rgba(245,158,11,0.4); }
+
+  .insight-card .insight-icon {
+    font-size: 1.5rem;
+    margin-bottom: 12px;
+  }
+  .insight-card h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+  }
+  .insight-card p {
+    font-size: 0.84rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+  .insight-card .tag {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 10px;
+    border-radius: 4px;
+    margin-bottom: 12px;
+  }
+  .tag-strength { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+  .tag-concern { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+  .tag-action { background: rgba(245,158,11,0.15); color: var(--accent-orange); }
+
+  /* ---- Chart Containers ---- */
+  .chart-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 28px;
+    margin-bottom: 16px;
+  }
+  .chart-panel h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+  }
+  .chart-panel .chart-subtitle {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+  }
+
+  /* ---- Bar Chart ---- */
+  .bar-chart { display: flex; flex-direction: column; gap: 14px; }
+  .bar-row {
+    display: grid;
+    grid-template-columns: 180px 1fr 60px;
+    align-items: center;
+    gap: 12px;
+  }
+  .bar-row .bar-label {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .bar-track {
+    height: 28px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    animation: barGrow 1s ease-out both;
+    position: relative;
+    min-width: 2px;
+  }
+  .bar-fill.blue { background: var(--gradient-blue); }
+  .bar-fill.green { background: var(--gradient-green); }
+  .bar-fill.purple { background: var(--gradient-purple); }
+  .bar-fill.cyan { background: var(--gradient-cyan); }
+  .bar-fill.orange { background: var(--gradient-orange); }
+  .bar-fill.red { background: var(--gradient-red); }
+  .bar-fill.pink { background: linear-gradient(135deg, #db2777, #ec4899); }
+
+  .bar-row .bar-value {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-align: right;
+  }
+
+  @media (max-width: 640px) {
+    .bar-row {
+      grid-template-columns: 120px 1fr 50px;
+    }
+  }
+
+  /* ---- Donut Ring (CSS only) ---- */
+  .donut-container {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .donut-ring {
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .donut-ring .donut-center {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .donut-center .donut-val {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    display: block;
+    line-height: 1;
+  }
+  .donut-center .donut-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  .donut-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .legend-item .legend-val {
+    margin-left: auto;
+    font-weight: 700;
+    color: var(--text-primary);
+    padding-left: 12px;
+  }
+
+  /* ---- Table ---- */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .data-table th {
+    text-align: left;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .data-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: var(--text-secondary);
+  }
+  .data-table tr:hover td {
+    background: rgba(255,255,255,0.02);
+  }
+  .data-table .rank {
+    width: 32px; height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.78rem;
+    background: rgba(133,131,255,0.1);
+    color: var(--accent-purple);
+  }
+  .data-table .rank.gold { background: rgba(245,158,11,0.15); color: var(--accent-orange); }
+  .data-table .rank.silver { background: rgba(156,163,175,0.15); color: #9ca3af; }
+  .data-table .rank.bronze { background: rgba(180,130,80,0.15); color: #c9956a; }
+
+  .data-table .name-cell {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .data-table .pts {
+    font-weight: 700;
+    color: var(--accent-purple);
+  }
+
+  /* ---- Two-column layout ---- */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 900px) {
+    .two-col { grid-template-columns: 1fr; }
+  }
+
+  /* ---- Community Info ---- */
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+  }
+  .info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.02);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .info-item .info-key {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  .info-item .info-val {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  /* ---- Space Type Pills ---- */
+  .space-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .space-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+  }
+  .space-pill .pill-count {
+    background: rgba(133,131,255,0.15);
+    color: var(--accent-purple);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  /* ---- Programs list ---- */
+  .programs-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .programs-list li {
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: var(--radius-sm);
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.15s;
+  }
+  .programs-list li:hover {
+    background: rgba(133,131,255,0.05);
+  }
+  .programs-list .prog-num {
+    width: 26px; height: 26px;
+    background: rgba(37,99,235,0.12);
+    color: var(--accent-blue);
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* ---- Engagement Rings ---- */
+  .engagement-rings {
+    display: flex;
+    gap: 40px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 24px 0;
+  }
+  .ring-stat {
+    text-align: center;
+  }
+  .ring-visual {
+    width: 110px; height: 110px;
+    border-radius: 50%;
+    position: relative;
+    margin: 0 auto 12px;
+  }
+  .ring-visual .ring-inner {
+    position: absolute;
+    top: 12px; left: 12px; right: 12px; bottom: 12px;
+    background: var(--bg-card);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ring-inner span {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--text-primary);
+  }
+  .ring-stat .ring-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  /* ---- Footer ---- */
+  .report-footer {
+    border-top: 1px solid var(--border-color);
+    padding: 32px 0;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    animation: fadeIn 1s ease-out 0.5s both;
+  }
+  .report-footer .footer-brand {
+    font-weight: 700;
+    color: var(--accent-purple);
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+  }
+  .report-footer a {
+    color: var(--accent-blue);
+    text-decoration: none;
+  }
+  .report-footer a:hover { text-decoration: underline; }
+
+  /* ---- Course Sprint Cards ---- */
+  .sprint-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px;
+  }
+  .sprint-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .sprint-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(133,131,255,0.3);
+  }
+  .sprint-card .sprint-num {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent-purple);
+    margin-bottom: 6px;
+  }
+  .sprint-card .sprint-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+  .sprint-card .sprint-desc {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  /* ---- Alert Banner ---- */
+  .alert-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 20px;
+    font-size: 0.88rem;
+  }
+  .alert-banner.warning {
+    background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.2);
+    color: #fca5a5;
+  }
+  .alert-banner .alert-icon { font-size: 1.2rem; flex-shrink: 0; }
+
+  /* ---- Print ---- */
+  @media print {
+    body { background: #fff; color: #111; }
+    .report-header { background: #f3f4f6; border-bottom: 2px solid #2563eb; }
+    .report-header h1 { -webkit-text-fill-color: #111; background: none; }
+    .metric-card, .insight-card, .chart-panel, .sprint-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      break-inside: avoid;
+    }
+    .bar-fill { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    .exec-summary { background: #f9fafb; }
+    :root {
+      --text-primary: #111827;
+      --text-secondary: #4b5563;
+      --text-muted: #6b7280;
+      --bg-card: #ffffff;
+      --border-color: #e5e7eb;
+    }
+    .animate-in { animation: none !important; }
+    .bar-fill { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== HEADER ==================== -->
+<header class="report-header">
+  <div class="container header-content">
+    <div class="header-badge"><span class="dot"></span> Community Analytics Report</div>
+    <h1>10X's Community Insights</h1>
+    <p class="header-subtitle">Comprehensive analysis of engagement, content, members, and growth across the 10X Circle LMS platform.</p>
+    <div class="header-meta">
+      <span><span class="label">Platform:</span> <a href="https://community.10x.in" style="color:var(--accent-blue);text-decoration:none;">community.10x.in</a></span>
+      <span><span class="label">Community ID:</span> 323931</span>
+      <span><span class="label">Created:</span> March 25, 2025</span>
+      <span><span class="label">Visibility:</span> Public</span>
+      <span><span class="label">Report Date:</span> February 24, 2026</span>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+<!-- ==================== EXECUTIVE SUMMARY ==================== -->
+<section class="section animate-in animate-in-1">
+  <div class="section-header">
+    <div class="section-label">Overview</div>
+    <h2 class="section-title">Executive Summary</h2>
+  </div>
+  <div class="exec-summary">
+    <strong>10X's Community</strong> is an AI and automation learning platform hosting 315 members with a robust curriculum of 117 lessons across 5+ sprints and 94 past live events. While the content infrastructure is strong, the community faces a significant <strong>engagement crisis</strong>: 63.5% of members have never posted or commented, per-post engagement averages just 0.19 likes, and 74% of members have zero gamification points. Content creation is heavily admin-driven, with "10x Support" authoring nearly half of recent posts. The community has <strong>no upcoming events scheduled</strong>, and 52% of its 27 spaces sit empty. Immediate action is needed to activate the silent majority, diversify content creation, and revitalize the event pipeline.
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ==================== KEY METRICS DASHBOARD ==================== -->
+<section class="section animate-in animate-in-2">
+  <div class="section-header">
+    <div class="section-label">Dashboard</div>
+    <h2 class="section-title">Key Metrics</h2>
+  </div>
+  <div class="cards-grid cards-grid-8">
+    <div class="metric-card">
+      <div class="metric-icon icon-blue">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <div class="metric-value">315</div>
+      <div class="metric-label">Total Members</div>
+      <div class="metric-sub"><span class="highlight-green">100%</span> marked active</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-icon icon-purple">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      </div>
+      <div class="metric-value">744</div>
+      <div class="metric-label">Total Posts</div>
+      <div class="metric-sub">Across <span class="highlight-green">13</span> active spaces</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-icon icon-cyan">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <div class="metric-value">393</div>
+      <div class="metric-label">Total Comments</div>
+      <div class="metric-sub">Avg <span class="highlight-orange">0.53</span>/post</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-icon icon-green">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </div>
+      <div class="metric-value">94</div>
+      <div class="metric-label">Events Held</div>
+      <div class="metric-sub"><span class="highlight-red">0</span> upcoming scheduled</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-icon icon-orange">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      </div>
+      <div class="metric-value">117</div>
+      <div class="metric-label">Course Lessons</div>
+      <div class="metric-sub"><span class="highlight-green">5+</span> sprints</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-icon icon-pink">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+      </div>
+      <div class="metric-value">27</div>
+      <div class="metric-label">Spaces</div>
+      <div class="metric-sub"><span class="highlight-red">14</span> are empty (52%)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-icon icon-red">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </div>
+      <div class="metric-value">0.19</div>
+      <div class="metric-label">Avg Likes / Post</div>
+      <div class="metric-sub"><span class="highlight-red">Very low</span> interaction</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-icon icon-purple">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
+      <div class="metric-value">18.4%</div>
+      <div class="metric-label">Member Post Rate</div>
+      <div class="metric-sub"><span class="highlight-red">63.5%</span> never engaged</div>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ==================== ENGAGEMENT OVERVIEW ==================== -->
+<section class="section animate-in animate-in-3">
+  <div class="section-header">
+    <div class="section-label">Engagement</div>
+    <h2 class="section-title">Member Engagement Breakdown</h2>
+  </div>
+
+  <div class="alert-banner warning">
+    <span class="alert-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </span>
+    <span><strong>Engagement Crisis:</strong> Nearly two-thirds of all members (200 of 315) have never posted or commented. The community is sustained by a small active minority.</span>
+  </div>
+
+  <div class="chart-panel">
+    <h3>Member Activity Segmentation</h3>
+    <p class="chart-subtitle">315 total members by engagement level</p>
+    <div class="engagement-rings">
+      <div class="ring-stat">
+        <div class="ring-visual" style="background: conic-gradient(#ef4444 0% 63.5%, rgba(255,255,255,0.06) 63.5% 100%);">
+          <div class="ring-inner"><span>200</span></div>
+        </div>
+        <div class="ring-label">Silent Members (63.5%)</div>
+      </div>
+      <div class="ring-stat">
+        <div class="ring-visual" style="background: conic-gradient(#f59e0b 0% 26.7%, rgba(255,255,255,0.06) 26.7% 100%);">
+          <div class="ring-inner"><span>84</span></div>
+        </div>
+        <div class="ring-label">Commented (26.7%)</div>
+      </div>
+      <div class="ring-stat">
+        <div class="ring-visual" style="background: conic-gradient(#10b981 0% 18.4%, rgba(255,255,255,0.06) 18.4% 100%);">
+          <div class="ring-inner"><span>58</span></div>
+        </div>
+        <div class="ring-label">Posted (18.4%)</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ==================== KEY STRENGTHS ==================== -->
+<section class="section animate-in animate-in-3">
+  <div class="section-header">
+    <div class="section-label">Analysis</div>
+    <h2 class="section-title">Key Strengths</h2>
+  </div>
+  <div class="cards-grid cards-grid-3">
+    <div class="insight-card green">
+      <span class="tag tag-strength">Strength</span>
+      <h3>Robust Curriculum</h3>
+      <p>117 lessons across 5+ structured sprints covering AI automation fundamentals through full-stack deployment projects. A serious learning pathway.</p>
+    </div>
+    <div class="insight-card green">
+      <span class="tag tag-strength">Strength</span>
+      <h3>Consistent Event Cadence</h3>
+      <p>94 events hosted since launch, split between weekly live classes (61) and masterclass events (33). Demonstrates operational commitment.</p>
+    </div>
+    <div class="insight-card green">
+      <span class="tag tag-strength">Strength</span>
+      <h3>Growing Member Base</h3>
+      <p>315 members with 100% active account status. The platform is attracting and retaining registered users consistently since March 2025.</p>
+    </div>
+    <div class="insight-card green">
+      <span class="tag tag-strength">Strength</span>
+      <h3>Global Diversity</h3>
+      <p>Members span the US (63), UK (52), Canada (13), India (9), UAE, Sri Lanka, and more. A truly international learning community.</p>
+    </div>
+    <div class="insight-card green">
+      <span class="tag tag-strength">Strength</span>
+      <h3>Experienced Members</h3>
+      <p>53% of members bring 5+ years of professional experience. This high-caliber audience can contribute deeply when activated.</p>
+    </div>
+    <div class="insight-card green">
+      <span class="tag tag-strength">Strength</span>
+      <h3>Clear Learning Goals</h3>
+      <p>96% of members have defined their learning objectives. 52% are upskilling, 21% are starting businesses, and 20% seek career changes.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ==================== CRITICAL CONCERNS ==================== -->
+<section class="section animate-in animate-in-4">
+  <div class="section-header">
+    <div class="section-label">Analysis</div>
+    <h2 class="section-title">Critical Concerns</h2>
+  </div>
+  <div class="cards-grid cards-grid-3">
+    <div class="insight-card red">
+      <span class="tag tag-concern">Critical</span>
+      <h3>Engagement Crisis</h3>
+      <p>Only 18.4% of members ever posted and 26.7% ever commented. 63.5% (approximately 200 members) are completely silent. The community lacks organic interaction.</p>
+    </div>
+    <div class="insight-card red">
+      <span class="tag tag-concern">Critical</span>
+      <h3>Admin-Heavy Content</h3>
+      <p>"10x Support" authored 46 of the most recent 100 posts. The community is admin-driven rather than member-driven, creating a broadcast dynamic.</p>
+    </div>
+    <div class="insight-card red">
+      <span class="tag tag-concern">Critical</span>
+      <h3>Near-Zero Per-Post Engagement</h3>
+      <p>Average 0.19 likes and 0.53 comments per post. Content is being created but members are not interacting. Posts go largely unnoticed.</p>
+    </div>
+    <div class="insight-card red">
+      <span class="tag tag-concern">Critical</span>
+      <h3>Gamification Failure</h3>
+      <p>74% of members have 0 gamification points. The points system exists but is not driving any behavioral change or participation incentives.</p>
+    </div>
+    <div class="insight-card red">
+      <span class="tag tag-concern">Critical</span>
+      <h3>No Upcoming Events</h3>
+      <p>All 94 events are in the past with zero upcoming events scheduled. To outside observers, the community may appear dormant or abandoned.</p>
+    </div>
+    <div class="insight-card red">
+      <span class="tag tag-concern">Critical</span>
+      <h3>Empty Spaces Problem</h3>
+      <p>14 of 27 spaces (52%) have zero posts. The community is over-structured with many unused spaces, diluting member attention and creating ghost-town impressions.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ==================== MEMBER DEMOGRAPHICS ==================== -->
+<section class="section animate-in animate-in-5">
+  <div class="section-header">
+    <div class="section-label">Members</div>
+    <h2 class="section-title">Member Demographics</h2>
+  </div>
+
+  <div class="two-col">
+    <!-- Learning Goals -->
+    <div class="chart-panel">
+      <h3>Learning Goals</h3>
+      <p class="chart-subtitle">Self-reported objectives across 315 members</p>
+      <div class="bar-chart">
+        <div class="bar-row">
+          <span class="bar-label">Upskilling</span>
+          <div class="bar-track"><div class="bar-fill blue" style="width:100%;animation-delay:0.1s"></div></div>
+          <span class="bar-value">164 (52%)</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Starting a Business</span>
+          <div class="bar-track"><div class="bar-fill purple" style="width:40.9%;animation-delay:0.2s"></div></div>
+          <span class="bar-value">67 (21%)</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Career Change</span>
+          <div class="bar-track"><div class="bar-fill cyan" style="width:39%;animation-delay:0.3s"></div></div>
+          <span class="bar-value">64 (20%)</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Networking</span>
+          <div class="bar-track"><div class="bar-fill green" style="width:3.7%;animation-delay:0.4s"></div></div>
+          <span class="bar-value">6 (2%)</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Not Specified</span>
+          <div class="bar-track"><div class="bar-fill orange" style="width:8.5%;animation-delay:0.5s"></div></div>
+          <span class="bar-value">14 (4%)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Years of Experience -->
+    <div class="chart-panel">
+      <h3>Years of Experience</h3>
+      <p class="chart-subtitle">Professional background distribution</p>
+      <div class="bar-chart">
+        <div class="bar-row">
+          <span class="bar-label">More than 5 Years</span>
+          <div class="bar-track"><div class="bar-fill purple" style="width:100%;animation-delay:0.15s"></div></div>
+          <span class="bar-value">167 (53%)</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Less than 1 Year</span>
+          <div class="bar-track"><div class="bar-fill blue" style="width:51.5%;animation-delay:0.25s"></div></div>
+          <span class="bar-value">86 (27%)</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">1 - 3 Years</span>
+          <div class="bar-track"><div class="bar-fill cyan" style="width:18.6%;animation-delay:0.35s"></div></div>
+          <span class="bar-value">31 (10%)</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">3 - 5 Years</span>
+          <div class="bar-track"><div class="bar-fill green" style="width:10.2%;animation-delay:0.45s"></div></div>
+          <span class="bar-value">17 (5%)</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Not Specified</span>
+          <div class="bar-track"><div class="bar-fill orange" style="width:8.4%;animation-delay:0.55s"></div></div>
+          <span class="bar-value">14 (4%)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Geographic Distribution -->
+  <div class="chart-panel" style="margin-top:16px;">
+    <h3>Geographic Distribution</h3>
+    <p class="chart-subtitle">Top member countries</p>
+    <div class="bar-chart">
+      <div class="bar-row">
+        <span class="bar-label">Others / Unspecified</span>
+        <div class="bar-track"><div class="bar-fill orange" style="width:100%;animation-delay:0.1s"></div></div>
+        <span class="bar-value">175</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">United States</span>
+        <div class="bar-track"><div class="bar-fill blue" style="width:36%;animation-delay:0.2s"></div></div>
+        <span class="bar-value">63</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">United Kingdom</span>
+        <div class="bar-track"><div class="bar-fill purple" style="width:29.7%;animation-delay:0.3s"></div></div>
+        <span class="bar-value">52</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Canada</span>
+        <div class="bar-track"><div class="bar-fill cyan" style="width:7.4%;animation-delay:0.4s"></div></div>
+        <span class="bar-value">13</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">India</span>
+        <div class="bar-track"><div class="bar-fill green" style="width:5.1%;animation-delay:0.5s"></div></div>
+        <span class="bar-value">9</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">UAE</span>
+        <div class="bar-track"><div class="bar-fill pink" style="width:1.1%;animation-delay:0.6s"></div></div>
+        <span class="bar-value">2</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Sri Lanka</span>
+        <div class="bar-track"><div class="bar-fill red" style="width:0.6%;animation-delay:0.7s"></div></div>
+        <span class="bar-value">1</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ==================== CONTENT ANALYSIS ==================== -->
+<section class="section animate-in animate-in-5">
+  <div class="section-header">
+    <div class="section-label">Content</div>
+    <h2 class="section-title">Content Analysis</h2>
+  </div>
+
+  <div class="two-col">
+    <!-- Posts by Space -->
+    <div class="chart-panel">
+      <h3>Posts by Space</h3>
+      <p class="chart-subtitle">Top spaces by total post count</p>
+      <div class="bar-chart">
+        <div class="bar-row">
+          <span class="bar-label" title="Latest AI News, Tools & Trends">AI News & Trends</span>
+          <div class="bar-track"><div class="bar-fill blue" style="width:100%;animation-delay:0.1s"></div></div>
+          <span class="bar-value">410</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">10X Discussions</span>
+          <div class="bar-track"><div class="bar-fill purple" style="width:30.7%;animation-delay:0.2s"></div></div>
+          <span class="bar-value">126</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Live Classes (AI)</span>
+          <div class="bar-track"><div class="bar-fill green" style="width:21%;animation-delay:0.3s"></div></div>
+          <span class="bar-value">86</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Recorded Classes (AI)</span>
+          <div class="bar-track"><div class="bar-fill cyan" style="width:20.5%;animation-delay:0.4s"></div></div>
+          <span class="bar-value">84</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Q/A Support (AI)</span>
+          <div class="bar-track"><div class="bar-fill orange" style="width:17.1%;animation-delay:0.5s"></div></div>
+          <span class="bar-value">70</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Recorded Classes (ASLT)</span>
+          <div class="bar-track"><div class="bar-fill pink" style="width:8.8%;animation-delay:0.6s"></div></div>
+          <span class="bar-value">36</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Masterclass Events</span>
+          <div class="bar-track"><div class="bar-fill red" style="width:5.4%;animation-delay:0.7s"></div></div>
+          <span class="bar-value">22</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Contributors -->
+    <div class="chart-panel">
+      <h3>Top Content Creators</h3>
+      <p class="chart-subtitle">Members by post count (recent sample)</p>
+      <div class="bar-chart">
+        <div class="bar-row">
+          <span class="bar-label">10x Support (admin)</span>
+          <div class="bar-track"><div class="bar-fill red" style="width:100%;animation-delay:0.15s"></div></div>
+          <span class="bar-value">46</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Ade Oyejide</span>
+          <div class="bar-track"><div class="bar-fill blue" style="width:50%;animation-delay:0.25s"></div></div>
+          <span class="bar-value">23</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Desmond Langton</span>
+          <div class="bar-track"><div class="bar-fill purple" style="width:15.2%;animation-delay:0.35s"></div></div>
+          <span class="bar-value">7</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Rasmi Nair</span>
+          <div class="bar-track"><div class="bar-fill cyan" style="width:6.5%;animation-delay:0.45s"></div></div>
+          <span class="bar-value">3</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Allan Edels</span>
+          <div class="bar-track"><div class="bar-fill green" style="width:4.3%;animation-delay:0.55s"></div></div>
+          <span class="bar-value">2</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Roland Adingo</span>
+          <div class="bar-track"><div class="bar-fill orange" style="width:4.3%;animation-delay:0.65s"></div></div>
+          <span class="bar-value">2</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Bally Dhammu</span>
+          <div class="bar-track"><div class="bar-fill pink" style="width:4.3%;animation-delay:0.75s"></div></div>
+          <span class="bar-value">2</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Engagement Metrics Detail -->
+  <div class="chart-panel" style="margin-top:16px;">
+    <h3>Post Engagement Breakdown</h3>
+    <p class="chart-subtitle">Aggregate metrics from 744 posts and 200-post sample for likes</p>
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:20px; margin-top:8px;">
+      <div style="text-align:center; padding:20px; background:rgba(255,255,255,0.02); border-radius:10px;">
+        <div style="font-size:2.2rem; font-weight:800; color:var(--accent-red);">0.19</div>
+        <div style="font-size:0.82rem; color:var(--text-muted); margin-top:4px;">Avg Likes per Post</div>
+        <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">152 likes across 200 posts</div>
+      </div>
+      <div style="text-align:center; padding:20px; background:rgba(255,255,255,0.02); border-radius:10px;">
+        <div style="font-size:2.2rem; font-weight:800; color:var(--accent-orange);">0.53</div>
+        <div style="font-size:0.82rem; color:var(--text-muted); margin-top:4px;">Avg Comments per Post</div>
+        <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">393 comments across 744 posts</div>
+      </div>
+      <div style="text-align:center; padding:20px; background:rgba(255,255,255,0.02); border-radius:10px;">
+        <div style="font-size:2.2rem; font-weight:800; color:var(--accent-purple);">744</div>
+        <div style="font-size:0.82rem; color:var(--text-muted); margin-top:4px;">Total Posts Published</div>
+        <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Across 13 active spaces</div>
+      </div>
+      <div style="text-align:center; padding:20px; background:rgba(255,255,255,0.02); border-radius:10px;">
+        <div style="font-size:2.2rem; font-weight:800; color:var(--accent-blue);">393</div>
+        <div style="font-size:0.82rem; color:var(--text-muted); margin-top:4px;">Total Comments</div>
+        <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">84 unique commenters</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ==================== SPACES & EVENTS ==================== -->
+<section class="section animate-in animate-in-6">
+  <div class="section-header">
+    <div class="section-label">Infrastructure</div>
+    <h2 class="section-title">Spaces &amp; Events</h2>
+  </div>
+
+  <div class="two-col">
+    <div class="chart-panel">
+      <h3>Spaces Overview</h3>
+      <p class="chart-subtitle">27 total spaces across 5 types</p>
+      <div class="space-pills">
+        <div class="space-pill">Basic (Discussion) <span class="pill-count">10</span></div>
+        <div class="space-pill">Course <span class="pill-count">7</span></div>
+        <div class="space-pill">Event <span class="pill-count">5</span></div>
+        <div class="space-pill">Chat <span class="pill-count">4</span></div>
+        <div class="space-pill">Other <span class="pill-count">1</span></div>
+      </div>
+
+      <div style="margin-top:24px; padding:16px; background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.15); border-radius:8px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          <span style="font-size:0.82rem;font-weight:700;color:#fca5a5;">14 of 27 Spaces Are Empty (52%)</span>
+        </div>
+        <p style="font-size:0.78rem;color:var(--text-muted);line-height:1.5;">Over half of all spaces have zero posts. Many are course or chat spaces that were created but never activated. This fragments member attention and creates a ghost-town impression.</p>
+      </div>
+    </div>
+
+    <div class="chart-panel">
+      <h3>Events Summary</h3>
+      <p class="chart-subtitle">94 total events, all completed</p>
+      <div class="bar-chart" style="margin-bottom:20px;">
+        <div class="bar-row">
+          <span class="bar-label">Weekly Live Classes (AI)</span>
+          <div class="bar-track"><div class="bar-fill blue" style="width:100%;animation-delay:0.2s"></div></div>
+          <span class="bar-value">61</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Live Masterclass Events</span>
+          <div class="bar-track"><div class="bar-fill purple" style="width:54.1%;animation-delay:0.3s"></div></div>
+          <span class="bar-value">33</span>
+        </div>
+      </div>
+
+      <div style="padding:16px; background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.15); border-radius:8px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span style="font-size:0.82rem;font-weight:700;color:#fca5a5;">0 Upcoming Events Scheduled</span>
+        </div>
+        <p style="font-size:0.78rem;color:var(--text-muted);line-height:1.5;">The event pipeline is completely empty. All 94 events are in the past. New visitors see no upcoming activity, giving the impression the community may be inactive.</p>
+      </div>
+
+      <div style="margin-top:16px;padding:12px 16px;background:rgba(255,255,255,0.02);border-radius:8px;font-size:0.8rem;color:var(--text-muted);">
+        <strong style="color:var(--text-secondary);">Host:</strong> All events hosted by "10x Support" (single admin account)
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ==================== COURSES ==================== -->
+<section class="section animate-in animate-in-6">
+  <div class="section-header">
+    <div class="section-label">Curriculum</div>
+    <h2 class="section-title">Course Structure</h2>
+  </div>
+  <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:20px;">117 lessons organized into structured sprints, progressing from AI fundamentals to full-stack project deployment.</p>
+  <div class="sprint-grid">
+    <div class="sprint-card">
+      <div class="sprint-num">Sprint 1</div>
+      <div class="sprint-title">Days 1 - 14</div>
+      <div class="sprint-desc">AI Automation fundamentals. Introduction to tools, concepts, and foundational skills.</div>
+    </div>
+    <div class="sprint-card">
+      <div class="sprint-num">Sprint 2</div>
+      <div class="sprint-title">Days 15 - 28</div>
+      <div class="sprint-desc">Webhooks, workflow design, debugging techniques, and integration patterns.</div>
+    </div>
+    <div class="sprint-card">
+      <div class="sprint-num">Sprint 3</div>
+      <div class="sprint-title">Days 29 - 42</div>
+      <div class="sprint-desc">LLMs, prompt engineering, MCP protocols, and browser automation.</div>
+    </div>
+    <div class="sprint-card">
+      <div class="sprint-num">Sprint 4</div>
+      <div class="sprint-title">Days 43 - 56</div>
+      <div class="sprint-desc">Vector databases, RAG systems, embeddings, and production deployment.</div>
+    </div>
+    <div class="sprint-card">
+      <div class="sprint-num">Sprint 5</div>
+      <div class="sprint-title">Days 57 - 70</div>
+      <div class="sprint-desc">Resume screener project, full-stack applications, and capstone projects.</div>
+    </div>
+    <div class="sprint-card" style="border-style:dashed;opacity:0.7;">
+      <div class="sprint-num">Sprint 6+</div>
+      <div class="sprint-title">Additional Sprints</div>
+      <div class="sprint-desc">Extended curriculum with advanced topics and specialized modules.</div>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ==================== GAMIFICATION & LEADERBOARD ==================== -->
+<section class="section animate-in animate-in-7">
+  <div class="section-header">
+    <div class="section-label">Gamification</div>
+    <h2 class="section-title">Leaderboard &amp; Points</h2>
+  </div>
+
+  <div class="two-col">
+    <!-- Points overview -->
+    <div class="chart-panel">
+      <h3>Points Distribution</h3>
+      <p class="chart-subtitle">Gamification health check</p>
+
+      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:24px;">
+        <div style="flex:1;min-width:140px;text-align:center;padding:20px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:10px;">
+          <div style="font-size:2rem;font-weight:800;color:var(--accent-red);">74%</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">Members at 0 Points</div>
+        </div>
+        <div style="flex:1;min-width:140px;text-align:center;padding:20px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15);border-radius:10px;">
+          <div style="font-size:2rem;font-weight:800;color:var(--accent-orange);">Level 1</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">Most Common Level</div>
+        </div>
+      </div>
+
+      <div style="padding:16px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:8px;">
+        <p style="font-size:0.82rem;color:#fca5a5;font-weight:600;margin-bottom:6px;">Gamification System Not Driving Behavior</p>
+        <p style="font-size:0.78rem;color:var(--text-muted);line-height:1.6;">Nearly three-quarters of all members have zero points. The gamification system is present but not incentivizing participation. Points need to be tied to meaningful actions and visible rewards.</p>
+      </div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="chart-panel">
+      <h3>Top 10 Leaderboard</h3>
+      <p class="chart-subtitle">Members ranked by gamification points</p>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:50px;">#</th>
+            <th>Member</th>
+            <th style="text-align:right;">Points</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="rank gold">1</span></td>
+            <td class="name-cell">Rajesh Vippala</td>
+            <td class="pts" style="text-align:right;">84</td>
+          </tr>
+          <tr>
+            <td><span class="rank silver">2</span></td>
+            <td class="name-cell">Micah Njeule</td>
+            <td class="pts" style="text-align:right;">77</td>
+          </tr>
+          <tr>
+            <td><span class="rank bronze">3</span></td>
+            <td class="name-cell">Ade Oyejide</td>
+            <td class="pts" style="text-align:right;">62</td>
+          </tr>
+          <tr>
+            <td><span class="rank">4</span></td>
+            <td class="name-cell">10x Mentor</td>
+            <td class="pts" style="text-align:right;">55</td>
+          </tr>
+          <tr>
+            <td><span class="rank">5</span></td>
+            <td class="name-cell">Jyothi Prabhu</td>
+            <td class="pts" style="text-align:right;">53</td>
+          </tr>
+          <tr>
+            <td><span class="rank">6</span></td>
+            <td class="name-cell">Kalika Gunawardena</td>
+            <td class="pts" style="text-align:right;">46</td>
+          </tr>
+          <tr>
+            <td><span class="rank">7</span></td>
+            <td class="name-cell">Paromita Sen</td>
+            <td class="pts" style="text-align:right;">42</td>
+          </tr>
+          <tr>
+            <td><span class="rank">8</span></td>
+            <td class="name-cell">Sathyasree Sreenivasan</td>
+            <td class="pts" style="text-align:right;">36</td>
+          </tr>
+          <tr>
+            <td><span class="rank">9</span></td>
+            <td class="name-cell">Asadullah Subhani</td>
+            <td class="pts" style="text-align:right;">32</td>
+          </tr>
+          <tr>
+            <td><span class="rank">10</span></td>
+            <td class="name-cell">Endam Alonjang</td>
+            <td class="pts" style="text-align:right;">30</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ==================== PROGRAMS ==================== -->
+<section class="section animate-in animate-in-7">
+  <div class="section-header">
+    <div class="section-label">Programs</div>
+    <h2 class="section-title">Space Groups (Programs)</h2>
+  </div>
+  <div class="chart-panel">
+    <h3>Active Programs</h3>
+    <p class="chart-subtitle">7 space groups organizing community content</p>
+    <ul class="programs-list">
+      <li><span class="prog-num">1</span> 10x Vibe Marketer 220226</li>
+      <li><span class="prog-num">2</span> 10x Vibe Marketer Cohort FEB26</li>
+      <li><span class="prog-num">3</span> 10X Vibe Marketer</li>
+      <li><span class="prog-num">4</span> 30-Days Masterclasses</li>
+      <li><span class="prog-num">5</span> The 10X Community</li>
+      <li><span class="prog-num">6</span> 10X AI For Senior Professionals</li>
+      <li><span class="prog-num">7</span> 10X Agentic AI Program</li>
+    </ul>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ==================== COMMUNITY INFO ==================== -->
+<section class="section animate-in animate-in-7">
+  <div class="section-header">
+    <div class="section-label">Platform</div>
+    <h2 class="section-title">Community Configuration</h2>
+  </div>
+  <div class="chart-panel">
+    <div class="info-grid">
+      <div class="info-item">
+        <span class="info-key">Community Name</span>
+        <span class="info-val">10X's Community</span>
+      </div>
+      <div class="info-item">
+        <span class="info-key">Community ID</span>
+        <span class="info-val">323931</span>
+      </div>
+      <div class="info-item">
+        <span class="info-key">URL</span>
+        <span class="info-val">community.10x.in</span>
+      </div>
+      <div class="info-item">
+        <span class="info-key">Created</span>
+        <span class="info-val">Mar 25, 2025</span>
+      </div>
+      <div class="info-item">
+        <span class="info-key">Visibility</span>
+        <span class="info-val">Public</span>
+      </div>
+      <div class="info-item">
+        <span class="info-key">Reply-to Email</span>
+        <span class="info-val">support@1to10x.ai</span>
+      </div>
+      <div class="info-item">
+        <span class="info-key">Weekly Digest</span>
+        <span class="info-val">Enabled</span>
+      </div>
+      <div class="info-item">
+        <span class="info-key">Brand Color (Light)</span>
+        <span class="info-val" style="display:flex;align-items:center;gap:8px;">
+          <span style="width:14px;height:14px;border-radius:4px;background:#2563eb;display:inline-block;"></span> #2563eb
+        </span>
+      </div>
+      <div class="info-item">
+        <span class="info-key">Brand Color (Dark)</span>
+        <span class="info-val" style="display:flex;align-items:center;gap:8px;">
+          <span style="width:14px;height:14px;border-radius:4px;background:#8583FF;display:inline-block;"></span> #8583FF
+        </span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ==================== RECOMMENDATIONS ==================== -->
+<section class="section animate-in animate-in-8">
+  <div class="section-header">
+    <div class="section-label">Action Plan</div>
+    <h2 class="section-title">Recommendations</h2>
+  </div>
+  <div class="cards-grid cards-grid-3" style="margin-bottom:16px;">
+    <div class="insight-card orange">
+      <span class="tag tag-action">Action</span>
+      <h3>Launch Weekly Engagement Challenges</h3>
+      <p>Create themed weekly challenges (e.g., "Share your AI automation win") with gamification point rewards. This gives silent members a low-friction reason to participate.</p>
+    </div>
+    <div class="insight-card orange">
+      <span class="tag tag-action">Action</span>
+      <h3>Consolidate Empty Spaces</h3>
+      <p>Archive or merge the 14 empty spaces into active ones. A focused set of 10-12 spaces will concentrate activity, making each space feel alive and active.</p>
+    </div>
+    <div class="insight-card orange">
+      <span class="tag tag-action">Action</span>
+      <h3>Member Spotlight Program</h3>
+      <p>Feature one community member weekly with their learning journey and project. This shifts the content dynamic from admin-broadcast to community-driven storytelling.</p>
+    </div>
+    <div class="insight-card orange">
+      <span class="tag tag-action">Action</span>
+      <h3>Schedule Upcoming Events Immediately</h3>
+      <p>The event pipeline is empty. Schedule at least 4-6 weeks of upcoming events to signal active community life. Visibility of future events drives retention and return visits.</p>
+    </div>
+    <div class="insight-card orange">
+      <span class="tag tag-action">Action</span>
+      <h3>Onboarding Automation for Silent Members</h3>
+      <p>Implement automated nudges for the 63.5% who have never engaged: welcome DMs, "introduce yourself" prompts, first-post incentives, and 7-day drip sequences.</p>
+    </div>
+    <div class="insight-card orange">
+      <span class="tag tag-action">Action</span>
+      <h3>Revamp Gamification System</h3>
+      <p>Tie points to meaningful actions: posting (10 pts), commenting (5 pts), completing a sprint (50 pts), attending live events (15 pts). Add visible badges and milestone rewards.</p>
+    </div>
+  </div>
+  <div class="cards-grid" style="grid-template-columns:1fr;">
+    <div class="insight-card orange">
+      <span class="tag tag-action">Action</span>
+      <h3>Introduce "Post of the Week" Feature</h3>
+      <p>Highlight the best community post each week with a pinned announcement and bonus gamification points. This incentivizes quality contributions, gives recognition to active members, and provides social proof that the community values member-generated content over admin broadcasts. Consider adding a voting mechanism to increase comment engagement.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ==================== FOOTER ==================== -->
+<footer class="report-footer">
+  <div class="container">
+    <div class="footer-brand">10X Community Analytics</div>
+    <p>Generated on February 24, 2026 &middot; Data source: Circle Admin API v2</p>
+    <p style="margin-top:4px;">Community: <a href="https://community.10x.in">10X's Community</a> (community.10x.in) &middot; ID: 323931</p>
+    <p style="margin-top:12px;font-size:0.72rem;color:var(--text-muted);">This report was generated using community data aggregated from Circle platform APIs. All metrics reflect data as of the report generation date.</p>
+  </div>
+</footer>
+
+</body>
+</html>
